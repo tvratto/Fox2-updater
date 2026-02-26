@@ -112,26 +112,38 @@
 btnConnect.onclick = async () => {
   try {
     terminal.clean();
-    terminal.writeLine("⚡ Put device in bootloader mode NOW.");
+    terminal.writeLine("⚡ Put device in bootloader mode FIRST.");
     terminal.writeLine("Hold BOOT → plug USB → release after 2 sec.");
 
     await safeClosePrevious();
 
     port = await navigator.serial.requestPort();
 
-    transport = new Transport(port, false); // ⚠️ disable signal toggling
+    // 🔥 IMPORTANT — open port manually
+    await port.open({
+      baudRate: 115200,
+      dataBits: 8,
+      stopBits: 1,
+      parity: "none",
+      flowControl: "none"
+    });
+
+    terminal.writeLine("Port opened manually.");
+
+    // 🔥 Create transport WITHOUT signal toggling
+    transport = new Transport(port, false);
 
     loader = new ESPLoader({
       transport,
       baudrate: 115200,
       terminal,
       debugLogging: true,
-      resetMethod: "no_reset"   // 🔥 CRITICAL
+      resetMethod: "no_reset"
     });
 
-    terminal.writeLine("Connecting...");
+    terminal.writeLine("Connecting to ESP32...");
 
-    await loader.connect(false); // 🔥 also critical
+    await loader.connect(false);
 
     terminal.writeLine("✅ Connected!");
     terminal.writeLine("Chip: " + loader.chip.CHIP_NAME);
