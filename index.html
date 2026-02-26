@@ -2,86 +2,40 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Fox2 App Updater</title>
+<title>Fox2 Firmware Updater</title>
 <style>
-  body { font-family: monospace; background:#111; color:#eee; padding:20px; }
-  button { padding:10px 20px; margin:5px; }
-  #log { margin-top:20px; white-space:pre-wrap; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #111;
+    color: #eee;
+    padding: 40px;
+    text-align: center;
+  }
+  h1 { margin-bottom: 10px; }
+  p { opacity: 0.8; }
+  esp-web-install-button {
+    margin-top: 20px;
+  }
 </style>
 </head>
 <body>
 
-<h2>Fox2 App Updater</h2>
+<h1>Fox2 Firmware Update</h1>
 
 <p>
-1) Hold BOOT<br>
-2) Plug in device<br>
-3) Click Update
+1. Hold BOOT<br>
+2. Plug in device<br>
+3. Click Connect<br>
+4. Select the USB device<br>
 </p>
 
-<button id="btnUpdate">Update App</button>
-
-<div id="log"></div>
-
-<script src="https://cdn.jsdelivr.net/npm/esptool-js@0.5.7/bundle.js"></script>
-
-<script>
-const logDiv = document.getElementById("log");
-
-function log(msg) {
-  logDiv.textContent += msg + "\n";
-}
-
-document.getElementById("btnUpdate").onclick = async () => {
-
-  try {
-
-    log("Requesting serial port...");
-    const port = await navigator.serial.requestPort();
-
-    const transport = new Transport(port, true);
-
-    const loader = new ESPLoader({
-      transport,
-      baudrate: 115200,
-      terminal: {
-        clean() {},
-        writeLine: log,
-        write: log
-      },
-      debugLogging: false
-    });
-
-    log("Connecting...");
-    await loader.connect(false);
-    log("Connected to " + loader.chip.CHIP_NAME);
-
-    log("Fetching firmware...");
-    const response = await fetch("./firmware/fox2_stable.bin");
-    const firmware = new Uint8Array(await response.arrayBuffer());
-
-    log("Flashing app at 0x10000...");
-    await loader.writeFlash({
-      fileArray: [{
-        data: firmware,
-        address: 0x10000
-      }],
-      eraseAll: false,
-      compress: false,
-      reportProgress: (p) => {
-        log("Progress: " + Math.floor(p * 100) + "%");
-      }
-    });
-
-    log("Update complete!");
-
-  } catch (err) {
-    log("ERROR: " + err.message);
-    console.error(err);
-  }
-
-};
+<!-- Official Espressif installer -->
+<script type="module"
+  src="https://unpkg.com/@espressif/web-install-button@latest/dist/web-install-button.js">
 </script>
+
+<esp-web-install-button manifest="manifest.json">
+</esp-web-install-button>
 
 </body>
 </html>
