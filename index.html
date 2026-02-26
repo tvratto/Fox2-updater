@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Fox2 App Updater2</title>
+<title>Fox2 App Updater</title>
 <style>
   body { font-family: monospace; background:#111; color:#eee; padding:20px; }
   button { padding:10px 20px; margin:5px; }
@@ -11,7 +11,7 @@
 </head>
 <body>
 
-<h2>Fox2 App Updater2</h2>
+<h2>Fox2 App Updater</h2>
 
 <p>
 1) Hold BOOT<br>
@@ -23,12 +23,10 @@
 
 <div id="log"></div>
 
-<script type="module">
+<!-- ✅ Official browser bundle -->
+<script src="https://espressif.github.io/esptool-js/bundle.js"></script>
 
-// Import esptool properly as a module
-import { ESPLoader, Transport }
-  from "https://cdn.jsdelivr.net/npm/esptool-js@0.5.7/dist/web/index.js";
-
+<script>
 const logDiv = document.getElementById("log");
 
 function log(msg) {
@@ -86,7 +84,6 @@ document.getElementById("btnUpdate").onclick = async () => {
   }
 
 };
-
 </script>
 
 </body>
