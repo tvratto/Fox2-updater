@@ -117,21 +117,22 @@ btnConnect.onclick = async () => {
 
     port =  navigator.serial.requestPort();
 
-    transport = new Transport(port, false);
+port = await navigator.serial.requestPort();
 
-    loader = new ESPLoader({
-      transport,
-      baudrate: 460800,
-      terminal,
-      debugLogging: true,
-      resetMethod: "no_reset"
-    });
+transport = new Transport(port, true);   // true = disable DTR/RTS in bundled builds
 
-   await loader.connect(false);
-  
-  terminal.writeLine("Loading stub...");
-  await loader.runStub();   // 🔥 THIS is the missing piece
-  terminal.writeLine("Stub running.");
+loader = new ESPLoader({
+  transport,
+  baudrate: 115200,
+  terminal,
+  debugLogging: true,
+  resetMethod: "no_reset"
+});
+
+await loader.connect(false);
+await loader.runStub();
+await loader.setBaudrate(460800);
+    
 
     terminal.writeLine("Connected!");
     terminal.writeLine("Chip: " + loader.chip.CHIP_NAME);
