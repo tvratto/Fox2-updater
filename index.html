@@ -1,20 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Fox2 App Updater</title>
+<style>
+  body {
+    font-family: monospace;
+    background: #111;
+    color: #eee;
+    padding: 20px;
+  }
+  button {
+    padding: 10px 20px;
+    margin: 5px;
+  }
+  #log {
+    margin-top: 20px;
+    white-space: pre-wrap;
+  }
+</style>
+</head>
+
 <body>
 
 <h2>Fox2 App Updater</h2>
+
+<p>
+1) Hold BOOT<br>
+2) Plug in device<br>
+3) Click Update
+</p>
 
 <button id="btnUpdate">Update App</button>
 
 <div id="log"></div>
 
-<!-- Load esptool as module -->
 <script type="module">
-  import { ESPLoader, Transport } from "https://unpkg.com/esptool-js@latest/dist/web/index.js";
-  window.ESPLoader = ESPLoader;
-  window.Transport = Transport;
-</script>
 
-<script>
-  // your updater code here (unchanged)
+import { ESPLoader, Transport } 
+  from "https://unpkg.com/esptool-js@latest/dist/web/index.js";
+
+const logDiv = document.getElementById("log");
+
+function log(msg) {
+  logDiv.textContent += msg + "\n";
+}
+
+document.getElementById("btnUpdate").onclick = async () => {
+
+  try {
+
+    log("Requesting serial port...");
+    const port = await navigator.serial.requestPort();
+
+    log("Creating transport...");
+    const transport = new Transport(port, true); 
+    // true disables DTR/RTS (important for your hardware)
+
+    const loader = new ESPLoader({
+      transport,
+      baudrate: 115200,
+      terminal: {
+        clean() {},
+        writeLine: log,
+        write: log
+      },
+      debugLogging: false
+    });
+
+    log("Connecting (manual bootloader mode required)...");
+    await loader.connect(false);   // skip reset
+    log("Connected to " + loader.chip.CHIP_NAME);
+
+    log("Fetching firmware...");
+    const response = await fetch("./firmware/fox2_stable.bin");
+    const firmware = new Uint8Array(await response.arrayBuffer());
+
+    log("Flashing app at 0x10000...");
+    await loader.writeFlash({
+      fileArray: [{
+        data: firmware,
+        address: 0x10000   // App partition
+      }],
+      eraseAll: false,
+      compress: false,
+      reportProgress: (percent) => {
+        log("Progress: " + Math.floor(percent * 100) + "%");
+      }
+    });
+
+    log("Update complete!");
+    log("Unplug and reboot device.");
+
+  } catch (err) {
+    log("ERROR: " + err.message);
+    console.error(err);
+  }
+
+};
+
 </script>
 
 </body>
+</html>
