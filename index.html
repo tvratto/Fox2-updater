@@ -9,7 +9,13 @@
   <h2>Fox2 Updater</h2>
   <button id="connect">Connect to ESP32-S2</button>
 
-  <pre id="log" style="background:#111;color:#0f0;padding:10px;height:300px;overflow:auto;"></pre>
+  <pre id="log"
+       style="background:#111;
+              color:#0f0;
+              padding:10px;
+              height:300px;
+              overflow:auto;
+              font-size:12px;"></pre>
 
   <script type="module">
     import { ESPLoader, Transport } from "./esptool.js";
@@ -30,37 +36,39 @@
       }
     };
 
-document.getElementById("connect").onclick = async () => {
+    document.getElementById("connect").onclick = async () => {
 
-  try {
-    terminal.clean();
-    terminal.writeLine("Requesting serial port...");
+      try {
+        terminal.clean();
+        terminal.writeLine("⚡ Enter bootloader mode manually first.");
+        terminal.writeLine("Requesting serial port...");
 
-    const port = await navigator.serial.requestPort();
+        const port = await navigator.serial.requestPort();
 
-    terminal.writeLine("Creating transport...");
+        terminal.writeLine("Creating transport...");
 
-    const transport = new Transport(port); // ← NO true
+        const transport = new Transport(port);
 
-    const loader = new ESPLoader({
-      transport,
-      baudrate: 115200,
-      terminal,
-      debugLogging: true
-    });
+        const loader = new ESPLoader({
+          transport: transport,
+          baudrate: 115200,
+          terminal: terminal,
+          debugLogging: true,
+          resetMethod: "no_reset"   // 🔥 critical for your hardware
+        });
 
-    terminal.writeLine("Connecting to ESP32...");
+        terminal.writeLine("Connecting to ESP32...");
 
-    await loader.connect();
+        await loader.connect();
 
-    terminal.writeLine("Connected!");
-    terminal.writeLine("Chip: " + loader.chip.CHIP_NAME);
+        terminal.writeLine("✅ Connected successfully!");
+        terminal.writeLine("Chip: " + loader.chip.CHIP_NAME);
 
-  } catch (err) {
-    terminal.writeLine("ERROR: " + err);
-    console.error(err);
-  }
-};
+      } catch (err) {
+        terminal.writeLine("❌ ERROR: " + err.message);
+        console.error(err);
+      }
+    };
   </script>
 </body>
 </html>
