@@ -401,15 +401,15 @@
       transport = new Transport(device, true);
       log('Connecting…', 'accent');
 
-      esploader = new ESPLoader({
-        transport,
-        baudrate: 921600,
-        romBaudrate: 115200,
-        logger: espLogger,
-      });
+esploader = new ESPLoader({
+  transport,
+  baudrate: 115200,
+  romBaudrate: 115200,
+  logger: espLogger,
+});
 
       // no_reset: skip RTS/DTR — device is already in bootloader mode
-      const chip = await esploader.main();
+      const chip = await esploader.main({ no_stub: true });
       log(`Connected! Chip: ${chip}`, 'ok');
 
       setStatus('connected', `Connected · ${chip}`);
