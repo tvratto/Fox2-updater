@@ -38,19 +38,9 @@ document.getElementById("connect").onclick = async () => {
 
     const port = await navigator.serial.requestPort();
 
-    terminal.writeLine("Opening serial port...");
-
-    await port.open({
-      baudRate: 115200,
-      dataBits: 8,
-      stopBits: 1,
-      parity: "none",
-      flowControl: "none"
-    });
-
     terminal.writeLine("Creating transport...");
 
-    const transport = new Transport(port, true); // ← true = already opened
+    const transport = new Transport(port); // ← NO true
 
     const loader = new ESPLoader({
       transport,
