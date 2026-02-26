@@ -100,56 +100,44 @@
       btnConnect.disabled = on;
     }
 
-    async function safeClosePrevious() {
-      // Close any old connection so we don't hit "port already open"
-      try { if (transport?.disconnect) await transport.disconnect(); } catch {}
-      try { if (port?.close) await port.close(); } catch {}
-      transport = null;
-      loader = null;
-      port = null;
-    }
+async function safeClosePrevious() {
+  try { await transport?.disconnect(); } catch {}
+  try { await port?.close(); } catch {}
+  transport = null;
+  loader = null;
+  port = null;
+}
 
 btnConnect.onclick = async () => {
   try {
     terminal.clean();
-    terminal.writeLine("⚡ Put device in bootloader mode first.");
+    terminal.writeLine("Put device in bootloader mode FIRST.");
 
     await safeClosePrevious();
 
     port = await navigator.serial.requestPort();
 
-    // DO NOT call port.open() yourself
-
     transport = new Transport(port, false);
 
     loader = new ESPLoader({
       transport,
-      baudrate: 460800,   // 🔥 change to 460800
+      baudrate: 460800,
       terminal,
       debugLogging: true,
       resetMethod: "no_reset"
     });
 
-    terminal.writeLine("Connecting...");
-
     await loader.connect(false);
 
-    terminal.writeLine("✅ Connected!");
+    terminal.writeLine("Connected!");
     terminal.writeLine("Chip: " + loader.chip.CHIP_NAME);
 
   } catch (err) {
-    terminal.writeLine("❌ ERROR: " + err.message);
+    terminal.writeLine("ERROR: " + err.message);
     console.error(err);
   }
 };
-
-    btnDisconnect.onclick = async () => {
-      terminal.writeLine("Disconnecting...");
-      await safeClosePrevious();
-      setConnectedUI(false);
-      terminal.writeLine("Done.");
-    };
-
+    
     btnFlash.onclick = async () => {
       try {
         const filename = fwSelect.value;
