@@ -2,8 +2,59 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>FOX2 Firmware Update</title>
-  <script type="module" src="https://unpkg.com/esp-web-tools@9/dist/web/install-button.js?module"></script>
+  <title>FOX2 App Update</title>
+  <script type="module">
+    import { ESPLoader, Transport } from "https://unpkg.com/esptool-js@0.4.5/dist/web/index.js";
+
+    let device;
+    let transport;
+    let loader;
+
+    async function connect() {
+      device = await navigator.serial.requestPort();
+      transport = new Transport(device);
+      loader = new ESPLoader({
+        transport,
+        baudrate: 115200,
+        terminal: {
+          writeLine: (msg) => log(msg),
+          write: (msg) => log(msg)
+        }
+      });
+
+      await loader.connect();
+      log("Connected to ESP32-S2");
+    }
+
+    async function flash() {
+      log("Downloading firmware...");
+      const response = await fetch("firmware.bin");
+      const firmware = await response.arrayBuffer();
+
+      log("Flashing firmware at 0x10000...");
+      await loader.writeFlash({
+        fileArray: [{
+          data: firmware,
+          address: 0x10000
+        }],
+        flashSize: "4MB",
+        compress: true
+      });
+
+      log("Flash complete!");
+      await loader.hardReset();
+    }
+
+    function log(msg) {
+      const consoleDiv = document.getElementById("console");
+      consoleDiv.textContent += msg + "\n";
+      consoleDiv.scrollTop = consoleDiv.scrollHeight;
+    }
+
+    window.connectDevice = connect;
+    window.flashDevice = flash;
+  </script>
+
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -11,37 +62,50 @@
       margin-top: 60px;
       background: #f5f5f5;
     }
-    h1 {
-      color: #222;
-    }
     .card {
       background: white;
       padding: 30px;
       display: inline-block;
       border-radius: 10px;
       box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+      width: 420px;
     }
     button {
-      font-size: 18px;
-      padding: 12px 20px;
+      font-size: 16px;
+      padding: 10px 18px;
+      margin: 8px;
       border-radius: 6px;
       border: none;
       background: #007aff;
       color: white;
       cursor: pointer;
     }
+    #console {
+      text-align: left;
+      background: #111;
+      color: #0f0;
+      padding: 10px;
+      margin-top: 15px;
+      height: 200px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 12px;
+      border-radius: 6px;
+    }
   </style>
 </head>
+
 <body>
   <div class="card">
-    <h1>FOX2 App Update</h1>
-    <p>This update will NOT erase your data.</p>
-    <esp-web-install-button manifest="manifest.json">
-      <button>Install Update</button>
-    </esp-web-install-button>
-    <p style="margin-top:20px;font-size:14px;">
-      Use Chrome or Edge. Plug device in before clicking Install.
-    </p>
+    <h2>FOX2 App Update</h2>
+    <p><strong>Step 1:</strong> Hold BOOT and plug device into USB.</p>
+    <p><strong>Step 2:</strong> Click Connect.</p>
+    <p><strong>Step 3:</strong> Click Flash.</p>
+
+    <button onclick="connectDevice()">Connect</button>
+    <button onclick="flashDevice()">Flash</button>
+
+    <div id="console"></div>
   </div>
 </body>
 </html>
