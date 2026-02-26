@@ -105,6 +105,14 @@
     }
 
     async function connect() {
+      // If a previous attempt left the port open, close it first
+      try { if (transport) await transport.disconnect(); } catch {}
+      try { if (device) await device.close(); } catch {}
+      transport = null;
+      device = null;
+      loader = null;
+      connected = false;
+      setFlashEnabled(false);
       try {
         if (!("serial" in navigator)) {
           log("WebSerial not supported. Use Chrome or Edge (desktop).");
