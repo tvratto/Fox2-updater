@@ -125,27 +125,34 @@ async function connect() {
     log("Requesting serial port...");
     device = await navigator.serial.requestPort();
 
-    // --- Explicitly open the port (CRITICAL FIX) ---
+    // --- Try to open; ignore "already open" ---
     log("Opening serial port...");
-    await device.open({
-      baudRate: 115200,
-      dataBits: 8,
-      stopBits: 1,
-      parity: "none",
-      flowControl: "none",
-    });
+    try {
+      await device.open({
+        baudRate: BAUD,
+        dataBits: 8,
+        stopBits: 1,
+        parity: "none",
+        flowControl: "none",
+      });
+      await new Promise(r => setTimeout(r, 150));
+    } catch (e) {
+      const msg = String(e?.message || e);
+      if (msg.includes("already open")) {
+        log("Port already open (ok).");
+      } else {
+        throw e; // real open error
+      }
+    }
 
-    // macOS sometimes needs a short delay after open
-    await new Promise(r => setTimeout(r, 250));
-
-    // --- Create transport without auto-reset ---
+    // --- Create transport/loader ---
     transport = new Transport(device);
 
     loader = new ESPLoader({
       transport,
-      baudrate: 115200,
+      baudrate: BAUD,
       terminal: {
-        clean: () => {}, // required by esptool-js
+        clean: () => {},
         writeLine: (s) => log(String(s)),
         write: (s) => logInline(String(s)),
       },
@@ -165,8 +172,7 @@ async function connect() {
     log("Tip: Unplug, hold BOOT while plugging in, then try Connect again.");
 
     // Attempt cleanup on failure
-    try { if (device?.readable || device?.writable) await device.close(); } catch {}
-
+    try { if (device) await device.close(); } catch {}
     console.error(e);
   }
 }
