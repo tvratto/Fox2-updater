@@ -23,7 +23,6 @@
 
 <div id="log"></div>
 
-<!-- ✅ Official browser bundle -->
 <script src="https://espressif.github.io/esptool-js/bundle.js"></script>
 
 <script>
@@ -40,11 +39,8 @@ document.getElementById("btnUpdate").onclick = async () => {
     log("Requesting serial port...");
     const port = await navigator.serial.requestPort();
 
-    log("Creating transport...");
-    const transport = new Transport(port, true);
-
     const loader = new ESPLoader({
-      transport,
+      port: port,               // ✅ pass port directly
       baudrate: 115200,
       terminal: {
         clean() {},
@@ -54,7 +50,7 @@ document.getElementById("btnUpdate").onclick = async () => {
       debugLogging: false
     });
 
-    log("Connecting...");
+    log("Connecting (manual bootloader mode)...");
     await loader.connect(false);
     log("Connected to " + loader.chip.CHIP_NAME);
 
