@@ -730,47 +730,30 @@
 <!-- Buffer polyfill (required by esptool-js in browser context) -->
 <script src="https://cdn.jsdelivr.net/npm/buffer@6.0.3/index.min.js"></script>
 
-<!-- esptool-js via CDN -->
-<script type="module">
-  // ─────────────────────────────────────────────────────────────────
-  // esptool-js ESM import from CDN
-  // ─────────────────────────────────────────────────────────────────
-  import { ESPLoader, Transport } from 'https://unpkg.com/esptool-js@0.4.3/bundle.js';
-
-  // Make Node's Buffer available globally (required by esptool-js in the browser)
-  globalThis.Buffer = buffer.Buffer;
-
+<!-- ── Regular script: UI state & handlers (globally accessible) ── -->
+<script>
   // ── State ──────────────────────────────────────────────────────
-  let transport = null;
-  let esploader  = null;
-  let device     = null;
-  let customFile = null;  // ArrayBuffer for drag-dropped or file-input .bin
-  let selectedUrl = 'firmware/fox2-latest.bin';
-
-  // ── Expose functions to global scope ──────────────────────────
-  window.selectFirmware = selectFirmware;
-  window.connectDevice  = connectDevice;
-  window.disconnectDevice = disconnectDevice;
-  window.flashFirmware  = flashFirmware;
-  window.handleFileSelect = handleFileSelect;
-  window.handleDragOver  = handleDragOver;
-  window.handleDragLeave = handleDragLeave;
-  window.handleDrop      = handleDrop;
-  window.clearLog        = clearLog;
-  window.resetUI         = resetUI;
+  var _transport  = null;
+  var _esploader  = null;
+  var _device     = null;
+  var _customFile = null;
+  var _selectedUrl = 'firmware/fox2-latest.bin';
 
   // ── Check Web Serial support ──────────────────────────────────
-  if (!('serial' in navigator)) {
-    document.getElementById('no-serial').style.display = 'block';
-  }
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!('serial' in navigator)) {
+      document.getElementById('no-serial').style.display = 'block';
+    }
+  });
 
   // ── Logging ───────────────────────────────────────────────────
-  function log(msg, type = 'info') {
-    const area = document.getElementById('log');
-    const line = document.createElement('span');
-    line.className = `log-line ${type}`;
-    const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
-    line.textContent = `[${ts}] ${msg}\n`;
+  function log(msg, type) {
+    type = type || 'info';
+    var area = document.getElementById('log');
+    var line = document.createElement('span');
+    line.className = 'log-line ' + type;
+    var ts = new Date().toLocaleTimeString('en-US', { hour12: false });
+    line.textContent = '[' + ts + '] ' + msg + '\n';
     area.appendChild(line);
     area.scrollTop = area.scrollHeight;
   }
@@ -779,26 +762,18 @@
     document.getElementById('log').innerHTML = '';
   }
 
-  // esptool-js logger interface
-  const logger = {
-    log:   (msg) => log(msg, 'info'),
-    debug: (msg) => log(msg, 'info'),
-    error: (msg) => log(msg, 'err'),
-  };
-
   // ── Firmware selection ────────────────────────────────────────
   function selectFirmware(el) {
-    document.querySelectorAll('.fw-option').forEach(o => o.classList.remove('selected'));
+    document.querySelectorAll('.fw-option').forEach(function(o) { o.classList.remove('selected'); });
     el.classList.add('selected');
-    selectedUrl = el.dataset.url;
-    customFile = null;
+    _selectedUrl = el.dataset.url;
+    _customFile = null;
     document.getElementById('custom-filename').style.display = 'none';
-    document.getElementById('upload-zone').style.borderColor = '';
   }
 
   // ── File input (custom .bin) ──────────────────────────────────
   function handleFileSelect(event) {
-    const file = event.target.files[0];
+    var file = event.target.files[0];
     if (!file) return;
     loadCustomFile(file);
   }
@@ -815,139 +790,26 @@
   function handleDrop(e) {
     e.preventDefault();
     document.getElementById('upload-zone').classList.remove('drag-over');
-    const file = e.dataTransfer.files[0];
+    var file = e.dataTransfer.files[0];
     if (file && file.name.endsWith('.bin')) loadCustomFile(file);
   }
 
   function loadCustomFile(file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      customFile = e.target.result;
-      // Deselect pre-built options
-      document.querySelectorAll('.fw-option').forEach(o => o.classList.remove('selected'));
-      selectedUrl = null;
-      const label = document.getElementById('custom-filename');
-      label.textContent = `✓ ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      _customFile = e.target.result;
+      document.querySelectorAll('.fw-option').forEach(function(o) { o.classList.remove('selected'); });
+      _selectedUrl = null;
+      var label = document.getElementById('custom-filename');
+      label.textContent = '✓ ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
       label.style.display = 'block';
     };
     reader.readAsArrayBuffer(file);
   }
 
-  // ── Connect ───────────────────────────────────────────────────
-  async function connectDevice() {
-    try {
-      device = await navigator.serial.requestPort({});
-      transport = new Transport(device, true);
-
-      log('Connecting to FOX2…', 'accent');
-
-      esploader = new ESPLoader({
-        transport,
-        baudrate: 921600,
-        romBaudrate: 115200,
-        logger,
-      });
-
-      const chip = await esploader.main();
-      log(`Connected! Chip: ${chip}`, 'ok');
-
-      setStatus('connected', `Connected · ${chip}`);
-      document.getElementById('btn-connect').style.display = 'none';
-      document.getElementById('btn-disconnect').style.display = '';
-      document.getElementById('btn-flash').disabled = false;
-
-    } catch (err) {
-      log(`Connection failed: ${err.message}`, 'err');
-    }
-  }
-
-  // ── Disconnect ────────────────────────────────────────────────
-  async function disconnectDevice() {
-    try {
-      if (transport) await transport.disconnect();
-    } catch (_) {}
-    transport = null;
-    esploader = null;
-    device = null;
-    setStatus('idle', 'Not connected');
-    document.getElementById('btn-connect').style.display = '';
-    document.getElementById('btn-disconnect').style.display = 'none';
-    document.getElementById('btn-flash').disabled = true;
-    log('Disconnected.', 'warn');
-  }
-
-  // ── Flash ──────────────────────────────────────────────────────
-  async function flashFirmware() {
-    let binary;
-
-    if (customFile) {
-      // Use drag-dropped/selected file
-      binary = bufferToString(customFile);
-    } else if (selectedUrl) {
-      log(`Downloading ${selectedUrl}…`, 'accent');
-      try {
-        const resp = await fetch(selectedUrl);
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const buf = await resp.arrayBuffer();
-        binary = bufferToString(buf);
-        log(`Download complete (${(buf.byteLength / 1024).toFixed(1)} KB)`, 'ok');
-      } catch (err) {
-        log(`Failed to download firmware: ${err.message}`, 'err');
-        return;
-      }
-    } else {
-      log('No firmware selected.', 'err');
-      return;
-    }
-
-    const addr = parseInt(document.getElementById('flash-addr').value, 16);
-    if (isNaN(addr)) { log('Invalid flash address.', 'err'); return; }
-
-    document.getElementById('btn-flash').disabled = true;
-    setStatus('flashing', 'Flashing…');
-    showProgress(true);
-
-    try {
-      await esploader.write_flash({
-        fileArray: [{ data: binary, address: addr }],
-        flashSize:  'keep',
-        flashMode:  'keep',
-        flashFreq:  'keep',
-        eraseAll:   false,
-        compress:   true,
-        reportProgress(fileIndex, written, total) {
-          const pct = Math.round((written / total) * 100);
-          document.getElementById('progress-fill').style.width = pct + '%';
-          document.getElementById('progress-pct').textContent = pct + '%';
-          document.getElementById('progress-detail').textContent =
-            written < total ? `Writing ${(written/1024).toFixed(0)} / ${(total/1024).toFixed(0)} KB` : 'Verifying…';
-        },
-      });
-
-      log('Firmware flashed successfully! ✓', 'ok');
-      log('Device is restarting…', 'info');
-      setStatus('connected', 'Done');
-      showProgress(false);
-      showSuccess();
-
-    } catch (err) {
-      log(`Flash failed: ${err.message}`, 'err');
-      setStatus('idle', 'Flash failed');
-      showProgress(false);
-      document.getElementById('btn-flash').disabled = false;
-    }
-  }
-
-  // ── Helpers ───────────────────────────────────────────────────
-  function bufferToString(buffer) {
-    const bytes = new Uint8Array(buffer);
-    let str = '';
-    for (let i = 0; i < bytes.length; i++) str += String.fromCharCode(bytes[i]);
-    return str;
-  }
-
+  // ── UI helpers ────────────────────────────────────────────────
   function setStatus(state, text) {
-    const chip = document.getElementById('status-chip');
+    var chip = document.getElementById('status-chip');
     chip.className = 'status-chip';
     if (state === 'connected') chip.classList.add('connected');
     if (state === 'flashing')  chip.classList.add('flashing');
@@ -975,6 +837,132 @@
     clearLog();
     setStatus('connected', 'Connected · ready');
   }
+
+  function bufferToString(buf) {
+    var bytes = new Uint8Array(buf);
+    var str = '';
+    for (var i = 0; i < bytes.length; i++) str += String.fromCharCode(bytes[i]);
+    return str;
+  }
+
+  // ── Connect / Disconnect / Flash (called from buttons) ────────
+  // These delegate to the async functions defined in the module below
+  function connectDevice()    { _connectDevice(); }
+  function disconnectDevice() { _disconnectDevice(); }
+  function flashFirmware()    { _flashFirmware(); }
+</script>
+
+<!-- ── Module script: esptool-js (needs ESM import) ── -->
+<script type="module">
+  import { ESPLoader, Transport } from 'https://unpkg.com/esptool-js@0.4.3/bundle.js';
+
+  // Make Node's Buffer available globally for esptool-js
+  globalThis.Buffer = buffer.Buffer;
+
+  const logger = {
+    log:   (msg) => log(msg, 'info'),
+    debug: (msg) => log(msg, 'info'),
+    error: (msg) => log(msg, 'err'),
+  };
+
+  // Expose async functions to global scope via the stubs above
+  window._connectDevice = async function () {
+    try {
+      _device = await navigator.serial.requestPort({});
+      _transport = new Transport(_device, true);
+      log('Connecting to FOX2…', 'accent');
+
+      _esploader = new ESPLoader({
+        transport: _transport,
+        baudrate: 921600,
+        romBaudrate: 115200,
+        logger,
+      });
+
+      const chip = await _esploader.main();
+      log('Connected! Chip: ' + chip, 'ok');
+
+      setStatus('connected', 'Connected · ' + chip);
+      document.getElementById('btn-connect').style.display = 'none';
+      document.getElementById('btn-disconnect').style.display = '';
+      document.getElementById('btn-flash').disabled = false;
+
+    } catch (err) {
+      log('Connection failed: ' + err.message, 'err');
+    }
+  };
+
+  window._disconnectDevice = async function () {
+    try { if (_transport) await _transport.disconnect(); } catch (_) {}
+    _transport = null; _esploader = null; _device = null;
+    setStatus('idle', 'Not connected');
+    document.getElementById('btn-connect').style.display = '';
+    document.getElementById('btn-disconnect').style.display = 'none';
+    document.getElementById('btn-flash').disabled = true;
+    log('Disconnected.', 'warn');
+  };
+
+  window._flashFirmware = async function () {
+    let binary;
+
+    if (_customFile) {
+      binary = bufferToString(_customFile);
+    } else if (_selectedUrl) {
+      log('Downloading ' + _selectedUrl + '…', 'accent');
+      try {
+        const resp = await fetch(_selectedUrl);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const buf = await resp.arrayBuffer();
+        binary = bufferToString(buf);
+        log('Download complete (' + (buf.byteLength / 1024).toFixed(1) + ' KB)', 'ok');
+      } catch (err) {
+        log('Failed to download firmware: ' + err.message, 'err');
+        return;
+      }
+    } else {
+      log('No firmware selected.', 'err');
+      return;
+    }
+
+    const addr = parseInt(document.getElementById('flash-addr').value, 16);
+    if (isNaN(addr)) { log('Invalid flash address.', 'err'); return; }
+
+    document.getElementById('btn-flash').disabled = true;
+    setStatus('flashing', 'Flashing…');
+    showProgress(true);
+
+    try {
+      await _esploader.write_flash({
+        fileArray: [{ data: binary, address: addr }],
+        flashSize: 'keep',
+        flashMode: 'keep',
+        flashFreq: 'keep',
+        eraseAll:  false,
+        compress:  true,
+        reportProgress(fileIndex, written, total) {
+          const pct = Math.round((written / total) * 100);
+          document.getElementById('progress-fill').style.width = pct + '%';
+          document.getElementById('progress-pct').textContent = pct + '%';
+          document.getElementById('progress-detail').textContent =
+            written < total
+              ? 'Writing ' + (written/1024).toFixed(0) + ' / ' + (total/1024).toFixed(0) + ' KB'
+              : 'Verifying…';
+        },
+      });
+
+      log('Firmware flashed successfully! ✓', 'ok');
+      log('Device is restarting…', 'info');
+      setStatus('connected', 'Done');
+      showProgress(false);
+      showSuccess();
+
+    } catch (err) {
+      log('Flash failed: ' + err.message, 'err');
+      setStatus('idle', 'Flash failed');
+      showProgress(false);
+      document.getElementById('btn-flash').disabled = false;
+    }
+  };
 </script>
 
 </body>
