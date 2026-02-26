@@ -101,8 +101,8 @@
     }
 
 async function safeClosePrevious() {
-  try { await transport?.disconnect(); } catch {}
-  try { await port?.close(); } catch {}
+  try {  transport?.disconnect(); } catch {}
+  try {  port?.close(); } catch {}
   transport = null;
   loader = null;
   port = null;
@@ -113,9 +113,9 @@ btnConnect.onclick = async () => {
     terminal.clean();
     terminal.writeLine("Put device in bootloader mode FIRST.");
 
-    await safeClosePrevious();
+     safeClosePrevious();
 
-    port = await navigator.serial.requestPort();
+    port =  navigator.serial.requestPort();
 
     transport = new Transport(port, false);
 
@@ -127,7 +127,11 @@ btnConnect.onclick = async () => {
       resetMethod: "no_reset"
     });
 
-    await loader.connect(false);
+   await loader.connect(false);
+  
+  terminal.writeLine("Loading stub...");
+  await loader.runStub();   // 🔥 THIS is the missing piece
+  terminal.writeLine("Stub running.");
 
     terminal.writeLine("Connected!");
     terminal.writeLine("Chip: " + loader.chip.CHIP_NAME);
