@@ -1,0 +1,15 @@
+{
+  "name": "FOX2 Stable",
+  "version": "stable",
+  "builds": [
+    {
+      "chipFamily": "ESP32",
+      "parts": [
+        {
+          "path": "fox2_stable.bin",
+          "offset": 65536
+        }
+      ]
+    }
+  ]
+}
