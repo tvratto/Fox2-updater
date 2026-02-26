@@ -1,38 +1,89 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8" />
-    <title>FOX2 Firmware Updater</title>
-    <script
-      type="module"
-      src="https://unpkg.com/esp-web-tools@9/dist/web/install-button.js?module">
-    </script>
-    <style>
-      body {
-        background: #0e1117;
-        color: #e6edf3;
-        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-        text-align: center;
-        padding-top: 80px;
-      }
-      h1 {
-        margin-bottom: 8px;
-      }
-      p {
-        color: #9da7b3;
-      }
-    </style>
-  </head>
+<head>
+  <meta charset="utf-8">
+  <title>Fox2 Simple Flasher</title>
+  <style>
+    body { font-family: monospace; background:#111; color:#eee; padding:20px; }
+    button { padding:10px 20px; margin:5px; }
+    #log { margin-top:20px; white-space:pre-wrap; }
+  </style>
+</head>
+<body>
 
-  <body>
-    <h1>FOX2 Firmware Updater</h1>
-    <p>Put device in bootloader mode before clicking Install.</p>
+<h2>Fox2 Simple Flasher</h2>
 
-    <esp-web-install-button manifest="manifest.json">
-      <button slot="activate">
-        Install / Update Firmware
-      </button>
-    </esp-web-install-button>
+<p>
+1) Hold BOOT<br>
+2) Plug in device<br>
+3) Click Connect & Flash
+</p>
 
-  </body>
+<button id="btnFlash">Connect & Flash</button>
+
+<div id="log"></div>
+
+<script src="./lib/esptool.js"></script>
+
+<script>
+const logDiv = document.getElementById("log");
+
+function log(msg) {
+  logDiv.textContent += msg + "\n";
+}
+
+document.getElementById("btnFlash").onclick = async () => {
+
+  try {
+
+    log("Requesting serial port...");
+    const port = await navigator.serial.requestPort();
+
+    log("Creating transport...");
+    const transport = new Transport(port, true); // disable DTR/RTS
+
+    const loader = new ESPLoader({
+      transport: transport,
+      baudrate: 115200,
+      terminal: {
+        clean() {},
+        writeLine: log,
+        write: log
+      },
+      debugLogging: false
+    });
+
+    log("Connecting...");
+    await loader.connect(false);   // skip reset
+    log("Connected to " + loader.chip.CHIP_NAME);
+
+    log("Fetching firmware...");
+    const response = await fetch("./firmware/fox2.bin");
+    const firmware = new Uint8Array(await response.arrayBuffer());
+
+    log("Flashing (no stub, 115200)...");
+    await loader.writeFlash({
+      fileArray: [{
+        data: firmware,
+        address: 0x1000
+      }],
+      eraseAll: true,
+      compress: false,
+      reportProgress: (p, written, total) => {
+        log("Progress: " + Math.floor(p * 100) + "%");
+      }
+    });
+
+    log("Done!");
+    log("You can unplug device.");
+
+  } catch (err) {
+    log("ERROR: " + err.message);
+    console.error(err);
+  }
+
+};
+</script>
+
+</body>
 </html>
