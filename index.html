@@ -103,9 +103,16 @@
         fwSelect.appendChild(opt);
       }
     }
-
+  
     async function connect() {
-      // If a previous attempt left the port open, close it first
+    try {
+      if (!("serial" in navigator)) {
+        log("WebSerial not supported. Use Chrome or Edge (desktop).");
+        return;
+      }
+  
+      // Clean up any prior session
+      log("Resetting previous connection (if any)...");
       try { if (transport) await transport.disconnect(); } catch {}
       try { if (device) await device.close(); } catch {}
       transport = null;
@@ -113,42 +120,40 @@
       loader = null;
       connected = false;
       setFlashEnabled(false);
-      try {
-        if (!("serial" in navigator)) {
-          log("WebSerial not supported. Use Chrome or Edge (desktop).");
-          return;
-        }
-
-        log("Requesting serial port...");
-        device = await navigator.serial.requestPort();
-
-        transport = new Transport(device, true);
-
-        loader = new ESPLoader({
-          transport,
-          baudrate: BAUD,
-          terminal: {
-            // ✅ Fix for: this.terminal.clean is not a function
-            clean: () => { /* no-op, or: logEl.textContent = ""; */ },
-
-            // esptool-js expects both of these
-            writeLine: (s) => log(String(s)),
-            write: (s) => logInline(String(s)),
-          },
-        });
-
-        log("Connecting to ROM bootloader...");
-        await loader.connect();
-
-        connected = true;
-        setFlashEnabled(true);
-        log("Connected. (If flashing fails, re-enter BOOT mode and try again.)");
-      } catch (e) {
-        connected = false;
-        setFlashEnabled(false);
-        log("Connect error: " + (e?.message || e));
-      }
+  
+      log("Requesting serial port...");
+      device = await navigator.serial.requestPort();
+  
+      // Small delay improves reliability on macOS
+      await new Promise(r => setTimeout(r, 150));
+  
+      // IMPORTANT: don't try to auto-reset; we assume user entered BOOT mode
+      transport = new Transport(device);
+  
+      loader = new ESPLoader({
+        transport,
+        baudrate: BAUD,
+        terminal: {
+          clean: () => {},
+          writeLine: (s) => log(String(s)),
+          write: (s) => logInline(String(s)),
+        },
+      });
+  
+      log("Connecting to ROM bootloader...");
+      await loader.connect();
+  
+      connected = true;
+      setFlashEnabled(true);
+      log("Connected ✅");
+    } catch (e) {
+      connected = false;
+      setFlashEnabled(false);
+      log("Connect error: " + (e?.message || e));
+      log("Tip: Unplug, hold BOOT while plugging in, then try Connect again.");
+      console.error(e);
     }
+  }
 
     async function flashApp() {
       if (!connected || !loader) {
