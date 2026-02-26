@@ -1,25 +1,25 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>Fox2 Simple Flasher</title>
-  <style>
-    body { font-family: monospace; background:#111; color:#eee; padding:20px; }
-    button { padding:10px 20px; margin:5px; }
-    #log { margin-top:20px; white-space:pre-wrap; }
-  </style>
+<meta charset="utf-8">
+<title>Fox2 App Updater</title>
+<style>
+  body { font-family: monospace; background:#111; color:#eee; padding:20px; }
+  button { padding:10px 20px; margin:5px; }
+  #log { margin-top:20px; white-space:pre-wrap; }
+</style>
 </head>
 <body>
 
-<h2>Fox2 Simple Flasher</h2>
+<h2>Fox2 App Updater</h2>
 
 <p>
 1) Hold BOOT<br>
 2) Plug in device<br>
-3) Click Connect & Flash
+3) Click Update
 </p>
 
-<button id="btnFlash">Connect & Flash</button>
+<button id="btnUpdate">Update App</button>
 
 <div id="log"></div>
 
@@ -32,7 +32,7 @@ function log(msg) {
   logDiv.textContent += msg + "\n";
 }
 
-document.getElementById("btnFlash").onclick = async () => {
+document.getElementById("btnUpdate").onclick = async () => {
 
   try {
 
@@ -43,7 +43,7 @@ document.getElementById("btnFlash").onclick = async () => {
     const transport = new Transport(port, true); // disable DTR/RTS
 
     const loader = new ESPLoader({
-      transport: transport,
+      transport,
       baudrate: 115200,
       terminal: {
         clean() {},
@@ -54,28 +54,28 @@ document.getElementById("btnFlash").onclick = async () => {
     });
 
     log("Connecting...");
-    await loader.connect(false);   // skip reset
+    await loader.connect(false); // skip reset
     log("Connected to " + loader.chip.CHIP_NAME);
 
-    log("Fetching firmware...");
-    const response = await fetch("./firmware/fox2.bin");
+    log("Fetching app firmware...");
+    const response = await fetch("./firmware/fox2_app.bin");
     const firmware = new Uint8Array(await response.arrayBuffer());
 
-    log("Flashing (no stub, 115200)...");
+    log("Flashing app at 0x10000...");
     await loader.writeFlash({
       fileArray: [{
         data: firmware,
-        address: 0x1000
+        address: 0x10000   // APP partition
       }],
-      eraseAll: true,
+      eraseAll: false,     // DO NOT erase bootloader
       compress: false,
-      reportProgress: (p, written, total) => {
+      reportProgress: (p) => {
         log("Progress: " + Math.floor(p * 100) + "%");
       }
     });
 
-    log("Done!");
-    log("You can unplug device.");
+    log("Update complete!");
+    log("Unplug and reboot device.");
 
   } catch (err) {
     log("ERROR: " + err.message);
