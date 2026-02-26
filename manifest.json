@@ -9,7 +9,7 @@
       "chipFamily": "ESP32-S2",
       "parts": [
         {
-          "path": "firmware/fox2_stable",
+          "path": "firmware/fox2_stable.bin",
           "offset": 65536
         }
       ]
