@@ -59,15 +59,13 @@
   <script type="module">
     import { ESPLoader, Transport } from "./bundle.js";
 
-    // ---- Configure your menu here ----
-    // Put these .bin files in the repo root next to index.html
     const FIRMWARES = [
       { label: "Stable (recommended)", file: "fox2_stable.bin" },
       { label: "Beta",                 file: "fox2_beta.bin"   },
     ];
 
-    const APP_OFFSET = 0x10000; // app only, keeps partitions/SPIFFS/NVS
-    const BAUD = 115200;        // conservative for reliability on macOS + S2 native USB
+    const APP_OFFSET = 0x10000;
+    const BAUD = 115200;
 
     const logEl = document.getElementById("log");
     const btnConnect = document.getElementById("btnConnect");
@@ -81,6 +79,13 @@
 
     function log(msg) {
       logEl.textContent += msg + "\n";
+      logEl.scrollTop = logEl.scrollHeight;
+      console.log(msg);
+    }
+
+    // Helper: append without always adding an extra newline (esptool sometimes uses write())
+    function logInline(msg) {
+      logEl.textContent += String(msg);
       logEl.scrollTop = logEl.scrollHeight;
       console.log(msg);
     }
@@ -114,7 +119,14 @@
         loader = new ESPLoader({
           transport,
           baudrate: BAUD,
-          terminal: { writeLine: log, write: log },
+          terminal: {
+            // ✅ Fix for: this.terminal.clean is not a function
+            clean: () => { /* no-op, or: logEl.textContent = ""; */ },
+
+            // esptool-js expects both of these
+            writeLine: (s) => log(String(s)),
+            write: (s) => logInline(String(s)),
+          },
         });
 
         log("Connecting to ROM bootloader...");
@@ -149,7 +161,6 @@
 
         await loader.writeFlash({
           fileArray: [{ data: bin, address: APP_OFFSET }],
-          // IMPORTANT: no eraseAll, no partitions, no bootloader
           compress: true,
         });
 
@@ -170,7 +181,6 @@
     }
 
     populateFirmwareMenu();
-
     btnConnect.addEventListener("click", connect);
     btnFlash.addEventListener("click", flashApp);
   </script>
