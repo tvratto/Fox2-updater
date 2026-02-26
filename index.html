@@ -727,12 +727,18 @@
   <br>Firmware runs on ESP32 · Web Serial requires a physical USB connection.
 </div>
 
+<!-- Buffer polyfill (required by esptool-js in browser context) -->
+<script src="https://cdn.jsdelivr.net/npm/buffer@6.0.3/index.min.js"></script>
+
 <!-- esptool-js via CDN -->
 <script type="module">
   // ─────────────────────────────────────────────────────────────────
   // esptool-js ESM import from CDN
   // ─────────────────────────────────────────────────────────────────
   import { ESPLoader, Transport } from 'https://unpkg.com/esptool-js@0.4.3/bundle.js';
+
+  // Make Node's Buffer available globally (required by esptool-js in the browser)
+  globalThis.Buffer = buffer.Buffer;
 
   // ── State ──────────────────────────────────────────────────────
   let transport = null;
