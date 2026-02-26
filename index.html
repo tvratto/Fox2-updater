@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FOX2 Firmware Updater</title>
 
-<!-- esp-web-tools: Espressif's official browser flashing library -->
-<script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js"></script>
+<!-- esptool-js loaded as a plain script (UMD bundle) — same approach as espressif.github.io/esptool-js -->
+<script src="https://unpkg.com/esptool-js@0.4.3/bundle.js"></script>
 
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
@@ -143,78 +143,7 @@
   }
 
   .card-header h2 { font-size: 14px; font-weight: 600; }
-
   .card-body { padding: 18px 20px; }
-
-  /* ── Firmware version cards ── */
-  .fw-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .fw-card {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 14px 16px;
-    border-radius: 10px;
-    border: 1px solid var(--border);
-    cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
-  }
-
-  .fw-card:hover {
-    border-color: rgba(249,115,22,0.4);
-    background: rgba(249,115,22,0.04);
-  }
-
-  .fw-card.active {
-    border-color: var(--accent);
-    background: rgba(249,115,22,0.06);
-  }
-
-  .fw-radio {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    border: 2px solid var(--border);
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: border-color 0.15s;
-  }
-
-  .fw-card.active .fw-radio { border-color: var(--accent); }
-
-  .fw-radio::after {
-    content: '';
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--accent);
-    opacity: 0;
-    transition: opacity 0.15s;
-  }
-
-  .fw-card.active .fw-radio::after { opacity: 1; }
-
-  .fw-info { flex: 1; min-width: 0; }
-  .fw-name { font-size: 14px; font-weight: 500; }
-  .fw-meta { font-size: 12px; color: var(--muted); margin-top: 2px; font-family: 'Space Mono', monospace; }
-
-  .fw-tag {
-    padding: 3px 8px;
-    border-radius: 5px;
-    font-size: 11px;
-    font-family: 'Space Mono', monospace;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-  }
-  .fw-tag.latest { background: rgba(34,197,94,0.12);  color: var(--success); }
-  .fw-tag.prev   { background: rgba(107,114,128,0.12); color: var(--muted); }
-  .fw-tag.beta   { background: rgba(234,179,8,0.12);   color: var(--warn); }
 
   /* ── Info note ── */
   .info-note {
@@ -224,108 +153,184 @@
     background: rgba(107,114,128,0.06);
     border: 1px solid var(--border);
     border-radius: 8px;
-    font-size: 12.5px;
+    font-size: 13px;
     color: var(--muted);
     line-height: 1.6;
     margin-bottom: 18px;
   }
-
   .info-note svg { flex-shrink: 0; margin-top: 2px; }
+  .info-note strong { color: var(--text); }
 
-  /* ── esp-web-tools install button ── */
-  .install-wrap {
-    display: flex;
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex;
     align-items: center;
-    gap: 14px;
-    flex-wrap: wrap;
-  }
-
-  esp-web-install-button::part(button) {
-    background: var(--accent);
-    color: white;
-    border: none;
-    border-radius: 10px;
+    justify-content: center;
+    gap: 8px;
     padding: 11px 22px;
+    border-radius: 10px;
     font-family: 'DM Sans', sans-serif;
-    font-size: 14px;
     font-weight: 600;
+    font-size: 14px;
     cursor: pointer;
-    transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+    border: none;
+    transition: all 0.15s;
     letter-spacing: 0.1px;
   }
 
-  esp-web-install-button::part(button):hover {
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+  .btn-primary:hover:not(:disabled) {
     background: #ea6c0a;
     transform: translateY(-1px);
     box-shadow: 0 6px 20px rgba(249,115,22,0.35);
   }
 
-  esp-web-install-button [slot="unsupported"] {
-    display: inline-block;
-    padding: 10px 16px;
-    border-radius: 10px;
-    background: rgba(239,68,68,0.08);
-    border: 1px solid rgba(239,68,68,0.3);
-    color: #fca5a5;
-    font-size: 13px;
+  .btn-secondary {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    border-color: var(--text);
+    color: var(--text);
   }
 
-  .install-hint {
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* ── Status chip ── */
+  .status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    background: rgba(107,114,128,0.1);
+    border: 1px solid rgba(107,114,128,0.2);
+    color: var(--muted);
+    margin-bottom: 16px;
+    transition: all 0.3s;
+  }
+  .status-chip.connected { background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.3); color: var(--success); }
+  .status-chip.flashing  { background: rgba(249,115,22,0.08); border-color: rgba(249,115,22,0.3); color: var(--accent); }
+  .status-chip.error     { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.3); color: var(--error); }
+
+  .status-chip .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+  }
+  .status-chip.connected .dot,
+  .status-chip.flashing .dot { animation: blink 1.5s ease infinite; }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ── Progress ── */
+  .progress-wrap { margin: 16px 0 4px; display: none; }
+
+  .progress-bar-bg {
+    width: 100%; height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 3px;
+    transition: width 0.2s ease;
+  }
+
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
     font-size: 12px;
     color: var(--muted);
-    line-height: 1.6;
+    font-family: 'Space Mono', monospace;
   }
 
-  .manifest-note {
-    margin-top: 16px;
-    padding: 11px 14px;
+  /* ── Log ── */
+  .log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 16px 0 8px;
+  }
+
+  .log-label {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 0.5px;
+  }
+
+  .log-area {
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 10px;
+    padding: 12px 14px;
+    height: 200px;
+    overflow-y: auto;
     font-family: 'Space Mono', monospace;
     font-size: 11.5px;
+    line-height: 1.7;
     color: var(--muted);
+  }
+
+  .log-area::-webkit-scrollbar { width: 4px; }
+  .log-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .log-line { display: block; }
+  .log-line.info   { color: #94a3b8; }
+  .log-line.ok     { color: var(--success); }
+  .log-line.warn   { color: var(--warn); }
+  .log-line.err    { color: var(--error); }
+  .log-line.accent { color: var(--accent); }
+
+  /* ── Success ── */
+  #flash-success {
+    display: none;
+    text-align: center;
+    padding: 32px 20px;
+    animation: fadeUp 0.4s ease;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  #flash-success .check-ring {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: rgba(34,197,94,0.1);
+    border: 2px solid var(--success);
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    margin: 0 auto 16px;
+    color: var(--success);
   }
 
-  .manifest-note span { color: var(--accent); }
+  #flash-success h3 { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+  #flash-success p  { font-size: 13px; color: var(--muted); line-height: 1.6; }
 
-  /* ── Manifest format reference card ── */
-  .code-block {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 14px 16px;
-    font-family: 'Space Mono', monospace;
-    font-size: 11.5px;
-    color: #94a3b8;
-    line-height: 1.8;
-    overflow-x: auto;
-    white-space: pre;
-  }
-
-  .code-block .k { color: var(--accent2); }
-  .code-block .s { color: var(--success); }
-  .code-block .n { color: #60a5fa; }
-
-  details summary {
-    cursor: pointer;
-    font-size: 13px;
-    color: var(--muted);
-    padding: 4px 0;
-    user-select: none;
-  }
-
-  details summary:hover { color: var(--text); }
-  details[open] summary { margin-bottom: 12px; }
+  .divider { height: 1px; background: var(--border); margin: 16px 0; }
 
   /* ── Footer ── */
   .footer-note {
     max-width: 640px;
     width: 100%;
-    padding: 0 24px 40px;
+    padding: 0 24px 48px;
     font-size: 12px;
     color: var(--muted);
     line-height: 1.7;
@@ -333,9 +338,25 @@
     position: relative;
     z-index: 1;
   }
-
   .footer-note a { color: var(--accent); text-decoration: none; }
   .footer-note a:hover { text-decoration: underline; }
+
+  /* ── No serial warning ── */
+  #no-serial {
+    display: none;
+    max-width: 640px;
+    width: 100%;
+    margin: 0 24px 16px;
+    padding: 14px 18px;
+    background: rgba(239,68,68,0.08);
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 10px;
+    color: #fca5a5;
+    font-size: 13px;
+    line-height: 1.6;
+    position: relative;
+    z-index: 1;
+  }
 </style>
 </head>
 <body>
@@ -356,123 +377,287 @@
   </div>
 </header>
 
+<div id="no-serial">
+  ⚠️ Your browser doesn't support the Web Serial API. Please use <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong> (desktop).
+</div>
+
 <main>
 
-  <!-- ── STEP 1: Select Firmware ── -->
+  <!-- ── STEP 1: Prepare ── -->
   <div class="card">
     <div class="card-header">
       <div class="step-num">1</div>
-      <h2>Select Firmware Version</h2>
+      <h2>Put FOX2 into Update Mode</h2>
     </div>
     <div class="card-body">
-      <div class="fw-grid">
-
-        <!-- Edit these cards to match your releases.
-             data-manifest points to a manifest JSON in your /firmware/ folder. -->
-
-        <div class="fw-card active" data-manifest="firmware/manifest-stable.json" onclick="selectFirmware(this)">
-          <div class="fw-radio"></div>
-          <div class="fw-info">
-            <div class="fw-name">FOX2 v1.0.0</div>
-            <div class="fw-meta">Released Feb 2026</div>
-          </div>
-          <span class="fw-tag latest">LATEST</span>
-        </div>
-
-      </div>
-    </div>
-  </div>
-
-  <!-- ── STEP 2: Flash ── -->
-  <div class="card">
-    <div class="card-header">
-      <div class="step-num">2</div>
-      <h2>Connect &amp; Flash</h2>
-    </div>
-    <div class="card-body">
-
-      <div class="info-note">
-        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <div class="info-note" style="margin-bottom:0">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <circle cx="12" cy="12" r="10"/>
           <line x1="12" y1="8" x2="12" y2="12"/>
           <line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
-        Hold the <strong>&nbsp;BOOT button&nbsp;</strong> on FOX2 while plugging in USB, then release to enter firmware update mode.
+        <span>
+          Hold the <strong>BOOT button</strong> on FOX2, plug in USB, then release BOOT.
+          The device is now in firmware update mode and ready to connect.
+        </span>
       </div>
-
-      <div class="install-wrap">
-        <esp-web-install-button id="install-btn" manifest="firmware/manifest-stable.json">
-          <span slot="unsupported">
-            ⚠️ Use Chrome or Edge (desktop) to flash firmware.
-          </span>
-        </esp-web-install-button>
-        <div class="install-hint">
-          A dialog will guide you through<br>connecting and flashing.
-        </div>
-      </div>
-
-      <div class="manifest-note">
-        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-          <polyline points="14 2 14 8 20 8"/>
-        </svg>
-        Manifest: <span id="manifest-label">firmware/manifest-stable.json</span>
-      </div>
-
     </div>
   </div>
 
-  <!-- ── Manifest format reference ── -->
+  <!-- ── STEP 2: Connect ── -->
   <div class="card">
     <div class="card-header">
-      <div class="step-num" style="background:rgba(107,114,128,0.1);border-color:rgba(107,114,128,0.2);color:var(--muted)">i</div>
-      <h2 style="color:var(--muted);font-weight:500">Manifest Format Reference</h2>
+      <div class="step-num">2</div>
+      <h2>Connect</h2>
     </div>
     <div class="card-body">
-      <details>
-        <summary>How to create a manifest JSON for each release ▾</summary>
-        <p style="font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.6">
-          Create one <code style="font-family:'Space Mono',monospace;font-size:11px;color:var(--accent2)">manifest-vX.Y.Z.json</code> per release in your <code style="font-family:'Space Mono',monospace;font-size:11px;color:var(--accent2)">/firmware/</code> folder:
-        </p>
-        <div class="code-block"><span class="k">{</span>
-  <span class="k">"name"</span>: <span class="s">"FOX2 v1.0.0"</span>,
-  <span class="k">"version"</span>: <span class="s">"1.0.0"</span>,
-  <span class="k">"home_assistant_domain"</span>: <span class="s">"esphome"</span>,
-  <span class="k">"builds"</span>: [
-    <span class="k">{</span>
-      <span class="k">"chipFamily"</span>: <span class="s">"ESP32"</span>,
-      <span class="k">"parts"</span>: [
-        <span class="k">{</span>
-          <span class="k">"path"</span>: <span class="s">"fox2-v1.0.0.bin"</span>,
-          <span class="k">"offset"</span>: <span class="n">0</span>
-        <span class="k">}</span>
-      ]
-    <span class="k">}</span>
-  ]
-<span class="k">}</span></div>
-        <p style="font-size:12px;color:var(--muted);margin-top:12px;line-height:1.6">
-          Use <strong>offset 0</strong> for a merged binary (Arduino IDE: <em>Sketch → Export Compiled Binary</em>).
-          The <code style="font-family:'Space Mono',monospace;font-size:11px;color:var(--accent2)">path</code> is relative to the manifest file.
-        </p>
-      </details>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-connect" onclick="connectDevice()">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M15 7h3a5 5 0 010 10h-3M9 17H6A5 5 0 016 7h3"/>
+            <line x1="8" y1="12" x2="16" y2="12"/>
+          </svg>
+          Connect to FOX2
+        </button>
+        <button class="btn btn-secondary" id="btn-disconnect" onclick="disconnectDevice()" style="display:none">
+          Disconnect
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 3: Flash ── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="step-num">3</div>
+      <h2>Flash Firmware</h2>
+    </div>
+    <div class="card-body">
+
+      <div class="status-chip" id="status-chip">
+        <div class="dot"></div>
+        <span id="status-text">Not connected</span>
+      </div>
+
+      <div id="flash-main">
+        <div class="btn-row">
+          <button class="btn btn-primary" id="btn-flash" onclick="flashFirmware()" disabled>
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+            Flash Firmware
+          </button>
+        </div>
+
+        <div class="progress-wrap" id="progress-wrap">
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progress-fill"></div>
+          </div>
+          <div class="progress-label">
+            <span id="progress-detail">Writing…</span>
+            <span id="progress-pct">0%</span>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="log-header">
+          <span class="log-label">OUTPUT LOG</span>
+          <button class="btn btn-secondary" onclick="clearLog()" style="padding:4px 10px;font-size:11px">Clear</button>
+        </div>
+        <div class="log-area" id="log"></div>
+      </div>
+
+      <div id="flash-success">
+        <div class="check-ring">
+          <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+        <h3>Update Complete!</h3>
+        <p>FOX2 firmware flashed successfully.<br>Unplug and reconnect the device to restart.</p>
+        <div style="margin-top:20px">
+          <button class="btn btn-secondary" onclick="resetUI()">Flash Again</button>
+        </div>
+      </div>
+
     </div>
   </div>
 
 </main>
 
 <div class="footer-note">
-  Powered by <a href="https://github.com/esphome/esp-web-tools" target="_blank">esp-web-tools</a> by ESPHome / Espressif.
-  &nbsp;·&nbsp;
-  <a href="https://github.com/your-org/fox2-firmware" target="_blank">View on GitHub</a>
+  Uses <a href="https://github.com/espressif/esptool-js" target="_blank">esptool-js</a> by Espressif ·
+  <a href="https://github.com/your-org/fox2" target="_blank">View on GitHub</a>
 </div>
 
 <script>
-  function selectFirmware(el) {
-    document.querySelectorAll('.fw-card').forEach(function(c) { c.classList.remove('active'); });
-    el.classList.add('active');
-    var manifest = el.dataset.manifest;
-    document.getElementById('install-btn').setAttribute('manifest', manifest);
-    document.getElementById('manifest-label').textContent = manifest;
+  // ── Check Web Serial ──────────────────────────────────────────
+  if (!('serial' in navigator)) {
+    document.getElementById('no-serial').style.display = 'block';
+  }
+
+  // ── State ──────────────────────────────────────────────────────
+  var transport  = null;
+  var esploader  = null;
+  var device     = null;
+
+  // Firmware to flash — update path to match your repo
+  var FIRMWARE_URL    = 'firmware/fox2_stable.bin';
+  var FIRMWARE_OFFSET = 0x10000; // app-only binary
+
+  // ── Logging ───────────────────────────────────────────────────
+  function log(msg, type) {
+    type = type || 'info';
+    var area = document.getElementById('log');
+    var line = document.createElement('span');
+    line.className = 'log-line ' + type;
+    var ts = new Date().toLocaleTimeString('en-US', { hour12: false });
+    line.textContent = '[' + ts + '] ' + msg + '\n';
+    area.appendChild(line);
+    area.scrollTop = area.scrollHeight;
+  }
+
+  function clearLog() {
+    document.getElementById('log').innerHTML = '';
+  }
+
+  // esptool-js logger interface
+  var logger = {
+    log:   function(msg) { log(msg, 'info'); },
+    debug: function(msg) { log(msg, 'info'); },
+    error: function(msg) { log(msg, 'err');  },
+  };
+
+  // ── UI helpers ────────────────────────────────────────────────
+  function setStatus(state, text) {
+    var chip = document.getElementById('status-chip');
+    chip.className = 'status-chip';
+    if (state) chip.classList.add(state);
+    document.getElementById('status-text').textContent = text;
+  }
+
+  function showProgress(visible) {
+    document.getElementById('progress-wrap').style.display = visible ? 'block' : 'none';
+    if (visible) {
+      document.getElementById('progress-fill').style.width = '0%';
+      document.getElementById('progress-pct').textContent = '0%';
+      document.getElementById('progress-detail').textContent = 'Erasing…';
+    }
+  }
+
+  function resetUI() {
+    document.getElementById('flash-main').style.display = 'block';
+    document.getElementById('flash-success').style.display = 'none';
+    document.getElementById('btn-flash').disabled = false;
+    showProgress(false);
+    clearLog();
+    setStatus('connected', 'Connected · ready to flash');
+  }
+
+  function bufferToString(buf) {
+    var bytes = new Uint8Array(buf);
+    var str = '';
+    // Process in chunks to avoid call stack overflow on large binaries
+    var CHUNK = 8192;
+    for (var i = 0; i < bytes.length; i += CHUNK) {
+      str += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+    }
+    return str;
+  }
+
+  // ── Connect ───────────────────────────────────────────────────
+  async function connectDevice() {
+    try {
+      device = await navigator.serial.requestPort({});
+      transport = new esptooljs.Transport(device, true);
+
+      log('Connecting…', 'accent');
+
+      esploader = new esptooljs.ESPLoader({
+        transport: transport,
+        baudrate:  921600,
+        romBaudrate: 115200,
+        logger: logger,
+      });
+
+      // no_reset: skip RTS/DTR reset — device is already in bootloader mode
+      var chip = await esploader.main({ mode: 'no_reset' });
+      log('Connected! Chip: ' + chip, 'ok');
+
+      setStatus('connected', 'Connected · ' + chip);
+      document.getElementById('btn-connect').style.display = 'none';
+      document.getElementById('btn-disconnect').style.display = '';
+      document.getElementById('btn-flash').disabled = false;
+
+    } catch (err) {
+      log('Connection failed: ' + err.message, 'err');
+      setStatus('error', 'Connection failed');
+    }
+  }
+
+  // ── Disconnect ────────────────────────────────────────────────
+  async function disconnectDevice() {
+    try { if (transport) await transport.disconnect(); } catch(e) {}
+    transport = null; esploader = null; device = null;
+    setStatus(null, 'Not connected');
+    document.getElementById('btn-connect').style.display = '';
+    document.getElementById('btn-disconnect').style.display = 'none';
+    document.getElementById('btn-flash').disabled = true;
+    log('Disconnected.', 'warn');
+  }
+
+  // ── Flash ─────────────────────────────────────────────────────
+  async function flashFirmware() {
+    log('Downloading ' + FIRMWARE_URL + '…', 'accent');
+
+    var binary;
+    try {
+      var resp = await fetch(FIRMWARE_URL);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var buf = await resp.arrayBuffer();
+      binary = bufferToString(buf);
+      log('Downloaded ' + (buf.byteLength / 1024).toFixed(1) + ' KB', 'ok');
+    } catch (err) {
+      log('Download failed: ' + err.message, 'err');
+      return;
+    }
+
+    document.getElementById('btn-flash').disabled = true;
+    setStatus('flashing', 'Flashing…');
+    showProgress(true);
+
+    try {
+      await esploader.write_flash({
+        fileArray: [{ data: binary, address: FIRMWARE_OFFSET }],
+        flashSize: 'keep',
+        flashMode: 'keep',
+        flashFreq: 'keep',
+        eraseAll:  false,
+        compress:  true,
+        reportProgress: function(fileIndex, written, total) {
+          var pct = Math.round((written / total) * 100);
+          document.getElementById('progress-fill').style.width = pct + '%';
+          document.getElementById('progress-pct').textContent = pct + '%';
+          document.getElementById('progress-detail').textContent =
+            written < total
+              ? 'Writing ' + (written/1024).toFixed(0) + ' / ' + (total/1024).toFixed(0) + ' KB'
+              : 'Verifying…';
+        },
+      });
+
+      log('Flash successful ✓', 'ok');
+      setStatus('connected', 'Done');
+      showProgress(false);
+      document.getElementById('flash-main').style.display = 'none';
+      document.getElementById('flash-success').style.display = 'block';
+
+    } catch (err) {
+      log('Flash failed: ' + err.message, 'err');
+      setStatus('error', 'Flash failed');
+      showProgress(false);
+      document.getElementById('btn-flash').disabled = false;
+    }
   }
 </script>
 
