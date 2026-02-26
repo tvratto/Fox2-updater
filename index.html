@@ -1,26 +1,14 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
-<title>Fox2 App Updater</title>
+<title>Fox2 App Updater2</title>
 <style>
-  body {
-    font-family: monospace;
-    background: #111;
-    color: #eee;
-    padding: 20px;
-  }
-  button {
-    padding: 10px 20px;
-    margin: 5px;
-  }
-  #log {
-    margin-top: 20px;
-    white-space: pre-wrap;
-  }
+  body { font-family: monospace; background:#111; color:#eee; padding:20px; }
+  button { padding:10px 20px; margin:5px; }
+  #log { margin-top:20px; white-space:pre-wrap; }
 </style>
 </head>
-
 <body>
 
 <h2>Fox2 App Updater</h2>
@@ -37,7 +25,8 @@
 
 <script type="module">
 
-import { ESPLoader, Transport } 
+// Import esptool properly as a module
+import { ESPLoader, Transport }
   from "https://unpkg.com/esptool-js@latest/dist/web/index.js";
 
 const logDiv = document.getElementById("log");
@@ -54,8 +43,7 @@ document.getElementById("btnUpdate").onclick = async () => {
     const port = await navigator.serial.requestPort();
 
     log("Creating transport...");
-    const transport = new Transport(port, true); 
-    // true disables DTR/RTS (important for your hardware)
+    const transport = new Transport(port, true);
 
     const loader = new ESPLoader({
       transport,
@@ -68,8 +56,8 @@ document.getElementById("btnUpdate").onclick = async () => {
       debugLogging: false
     });
 
-    log("Connecting (manual bootloader mode required)...");
-    await loader.connect(false);   // skip reset
+    log("Connecting...");
+    await loader.connect(false);
     log("Connected to " + loader.chip.CHIP_NAME);
 
     log("Fetching firmware...");
@@ -80,12 +68,12 @@ document.getElementById("btnUpdate").onclick = async () => {
     await loader.writeFlash({
       fileArray: [{
         data: firmware,
-        address: 0x10000   // App partition
+        address: 0x10000
       }],
       eraseAll: false,
       compress: false,
-      reportProgress: (percent) => {
-        log("Progress: " + Math.floor(percent * 100) + "%");
+      reportProgress: (p) => {
+        log("Progress: " + Math.floor(p * 100) + "%");
       }
     });
 
