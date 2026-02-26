@@ -409,7 +409,7 @@
       });
 
       // no_reset: skip RTS/DTR — device is already in bootloader mode
-      const chip = await esploader.main({ mode: 'no_reset' });
+      const chip = await esploader.main();
       log(`Connected! Chip: ${chip}`, 'ok');
 
       setStatus('connected', `Connected · ${chip}`);
