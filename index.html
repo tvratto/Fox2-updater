@@ -12,7 +12,7 @@
   <pre id="log" style="background:#111;color:#0f0;padding:10px;height:300px;overflow:auto;"></pre>
 
   <script type="module">
-    import { ESPLoader } from "./esptool.js";
+    import { ESPLoader, Transport } from "./esptool.js";
 
     const logEl = document.getElementById("log");
 
@@ -30,33 +30,22 @@
       }
     };
 
-    let port;
-
     document.getElementById("connect").onclick = async () => {
 
       try {
-
         terminal.clean();
         terminal.writeLine("Requesting serial port...");
 
-        port = await navigator.serial.requestPort();
+        const port = await navigator.serial.requestPort();
 
-        terminal.writeLine("Opening serial port...");
+        terminal.writeLine("Creating transport...");
 
-        await port.open({
-          baudRate: 115200,
-          dataBits: 8,
-          stopBits: 1,
-          parity: "none",
-          flowControl: "none"
-        });
-
-        terminal.writeLine("Port opened at 115200.");
+        const transport = new Transport(port);
 
         const loader = new ESPLoader({
-          transport: port,
+          transport,
           baudrate: 115200,
-          terminal: terminal,
+          terminal,
           debugLogging: true
         });
 
@@ -64,7 +53,7 @@
 
         await loader.connect();
 
-        terminal.writeLine("Connected successfully!");
+        terminal.writeLine("Connected!");
         terminal.writeLine("Chip: " + loader.chip.CHIP_NAME);
 
       } catch (err) {
@@ -72,7 +61,6 @@
         console.error(err);
       }
     };
-
   </script>
 </body>
 </html>
