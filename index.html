@@ -104,56 +104,72 @@
       }
     }
   
-    async function connect() {
-    try {
-      if (!("serial" in navigator)) {
-        log("WebSerial not supported. Use Chrome or Edge (desktop).");
-        return;
-      }
-  
-      // Clean up any prior session
-      log("Resetting previous connection (if any)...");
-      try { if (transport) await transport.disconnect(); } catch {}
-      try { if (device) await device.close(); } catch {}
-      transport = null;
-      device = null;
-      loader = null;
-      connected = false;
-      setFlashEnabled(false);
-  
-      log("Requesting serial port...");
-      device = await navigator.serial.requestPort();
-  
-      // Small delay improves reliability on macOS
-      await new Promise(r => setTimeout(r, 150));
-  
-      // IMPORTANT: don't try to auto-reset; we assume user entered BOOT mode
-      transport = new Transport(device);
-  
-      loader = new ESPLoader({
-        transport,
-        baudrate: BAUD,
-        terminal: {
-          clean: () => {},
-          writeLine: (s) => log(String(s)),
-          write: (s) => logInline(String(s)),
-        },
-      });
-  
-      log("Connecting to ROM bootloader...");
-      await loader.connect();
-  
-      connected = true;
-      setFlashEnabled(true);
-      log("Connected ✅");
-    } catch (e) {
-      connected = false;
-      setFlashEnabled(false);
-      log("Connect error: " + (e?.message || e));
-      log("Tip: Unplug, hold BOOT while plugging in, then try Connect again.");
-      console.error(e);
+async function connect() {
+  try {
+    if (!("serial" in navigator)) {
+      log("WebSerial not supported. Use Chrome or Edge (desktop).");
+      return;
     }
+
+    // --- Clean up any previous session ---
+    log("Resetting previous connection (if any)...");
+    try { if (transport) await transport.disconnect(); } catch {}
+    try { if (device) await device.close(); } catch {}
+    transport = null;
+    device = null;
+    loader = null;
+    connected = false;
+    setFlashEnabled(false);
+
+    // --- Ask user for port ---
+    log("Requesting serial port...");
+    device = await navigator.serial.requestPort();
+
+    // --- Explicitly open the port (CRITICAL FIX) ---
+    log("Opening serial port...");
+    await device.open({
+      baudRate: 115200,
+      dataBits: 8,
+      stopBits: 1,
+      parity: "none",
+      flowControl: "none",
+    });
+
+    // macOS sometimes needs a short delay after open
+    await new Promise(r => setTimeout(r, 250));
+
+    // --- Create transport without auto-reset ---
+    transport = new Transport(device);
+
+    loader = new ESPLoader({
+      transport,
+      baudrate: 115200,
+      terminal: {
+        clean: () => {}, // required by esptool-js
+        writeLine: (s) => log(String(s)),
+        write: (s) => logInline(String(s)),
+      },
+    });
+
+    log("Connecting to ROM bootloader...");
+    await loader.connect();
+
+    connected = true;
+    setFlashEnabled(true);
+    log("Connected ✅");
+  } catch (e) {
+    connected = false;
+    setFlashEnabled(false);
+
+    log("Connect error: " + (e?.message || e));
+    log("Tip: Unplug, hold BOOT while plugging in, then try Connect again.");
+
+    // Attempt cleanup on failure
+    try { if (device?.readable || device?.writable) await device.close(); } catch {}
+
+    console.error(e);
   }
+}
 
     async function flashApp() {
       if (!connected || !loader) {
