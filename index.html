@@ -1,19 +1,33 @@
 <button id="connect">Connect</button>
 
 <script type="module">
-import { ESPLoader } from './esptool.js';
+import { ESPLoader } from "./esptool.js";
 
 document.getElementById("connect").onclick = async () => {
+
   const port = await navigator.serial.requestPort();
-  await port.open({ baudRate: 115200 });
+
+  await port.open({
+    baudRate: 115200,
+    dataBits: 8,
+    stopBits: 1,
+    parity: "none",
+    flowControl: "none"
+  });
+
+  const terminal = {
+    write: (data) => console.log(data),
+    clean: () => console.clear()
+  };
 
   const loader = new ESPLoader({
     transport: port,
     baudrate: 115200,
-    terminal: { write: console.log }
+    terminal: terminal,
+    debugLogging: true
   });
 
   await loader.connect();
-  console.log("Connected!");
+  console.log("Connected to ESP!");
 };
 </script>
