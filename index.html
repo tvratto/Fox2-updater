@@ -109,43 +109,41 @@
       port = null;
     }
 
-    btnConnect.onclick = async () => {
-      try {
-        terminal.clean();
-        terminal.writeLine("⚡ Enter bootloader mode manually first.");
-        terminal.writeLine("Requesting serial port...");
+btnConnect.onclick = async () => {
+  try {
+    terminal.clean();
+    terminal.writeLine("⚡ Put device in bootloader mode NOW.");
+    terminal.writeLine("Hold BOOT → plug USB → release after 2 sec.");
 
-        await safeClosePrevious();
+    await safeClosePrevious();
 
-        port = await navigator.serial.requestPort();
-        terminal.writeLine("Creating transport...");
+    port = await navigator.serial.requestPort();
 
-        // NOTE:
-        // If your earlier “fix” required (port, true), switch to: new Transport(port, true)
-        transport = new Transport(port);
+    transport = new Transport(port, false); // ⚠️ disable signal toggling
 
-        loader = new ESPLoader({
-          transport: transport,
-          baudrate: BAUD,
-          terminal: terminal,
-          debugLogging: true
-        });
+    loader = new ESPLoader({
+      transport,
+      baudrate: 115200,
+      terminal,
+      debugLogging: true,
+      resetMethod: "no_reset"   // 🔥 CRITICAL
+    });
 
-        terminal.writeLine("Connecting to ESP32...");
-        // 🔥 CRITICAL — skip auto reset (matches your known-good snippet)
-        await loader.connect(false);
+    terminal.writeLine("Connecting...");
 
-        terminal.writeLine("✅ Connected successfully!");
-        terminal.writeLine("Chip: " + loader.chip.CHIP_NAME);
+    await loader.connect(false); // 🔥 also critical
 
-        setConnectedUI(true);
+    terminal.writeLine("✅ Connected!");
+    terminal.writeLine("Chip: " + loader.chip.CHIP_NAME);
 
-      } catch (err) {
-        terminal.writeLine("❌ ERROR: " + (err?.message || err));
-        console.error(err);
-        setConnectedUI(false);
-      }
-    };
+    setConnectedUI(true);
+
+  } catch (err) {
+    terminal.writeLine("❌ ERROR: " + err.message);
+    console.error(err);
+    setConnectedUI(false);
+  }
+};
 
     btnDisconnect.onclick = async () => {
       terminal.writeLine("Disconnecting...");
