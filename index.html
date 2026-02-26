@@ -1,101 +1,178 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>FOX2 App Update</title>
-
+  <meta charset="utf-8" />
+  <title>FOX2 Updater (App Only)</title>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; margin-top: 60px; background: #f5f5f5; }
-    .card { background: white; padding: 30px; display: inline-block; border-radius: 10px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1); width: 440px; }
-    button { font-size: 16px; padding: 10px 18px; margin: 8px; border-radius: 6px;
-             border: none; background: #007aff; color: white; cursor: pointer; }
-    #console { text-align: left; background: #111; color: #0f0; padding: 10px; margin-top: 15px;
-               height: 220px; overflow-y: auto; font-family: monospace; font-size: 12px; border-radius: 6px; }
+    body { font-family: Arial, sans-serif; background:#f5f5f5; margin:0; }
+    .wrap { max-width:720px; margin:40px auto; padding:0 16px; }
+    .card { background:#fff; border-radius:12px; box-shadow:0 6px 24px rgba(0,0,0,.12); padding:24px; }
+    h1 { margin:0 0 8px 0; font-size:22px; }
+    .sub { color:#444; margin:0 0 18px 0; }
+    .steps { background:#f8fafc; border:1px solid #e5e7eb; border-radius:10px; padding:14px 14px 6px 14px; margin:14px 0; }
+    .steps ol { margin:0 0 0 18px; padding:0; }
+    .steps li { margin:8px 0; }
+    .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:14px 0; }
+    select { padding:10px; border-radius:8px; border:1px solid #cbd5e1; min-width:280px; }
+    button { padding:10px 14px; border-radius:8px; border:0; background:#007aff; color:#fff; cursor:pointer; }
+    button:disabled { opacity:.45; cursor:not-allowed; }
+    .pill { display:inline-block; padding:6px 10px; border-radius:999px; background:#111827; color:#fff; font-size:12px; }
+    .warn { background:#fff7ed; border:1px solid #fed7aa; color:#7c2d12; border-radius:10px; padding:12px; margin-top:12px; }
+    #log { white-space:pre-wrap; background:#0b1020; color:#b6ffb6; border-radius:10px; padding:12px; height:220px; overflow:auto; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; }
+    .small { font-size:12px; color:#475569; }
   </style>
 </head>
 
 <body>
-  <div class="card">
-    <h2>FOX2 App Update</h2>
+  <div class="wrap">
+    <div class="card">
+      <h1>FOX2 Firmware Updater <span class="pill">App only</span></h1>
+      <p class="sub">This updater writes ONLY the app at <b>0x10000</b>. It does <b>not</b> touch bootloader, partitions, SPIFFS, or Preferences.</p>
 
-    <p><strong>1)</strong> Unplug device</p>
-    <p><strong>2)</strong> Hold <b>BOOT</b> and plug it in</p>
-    <p><strong>3)</strong> Click <b>Connect</b>, then <b>Flash</b></p>
+      <div class="steps">
+        <ol>
+          <li><b>Unplug</b> the device.</li>
+          <li>Hold <b>BOOT</b>, then <b>plug USB in</b>. Keep holding BOOT for ~2 seconds, then release.</li>
+          <li>Click <b>Connect</b> and choose the USB device/port.</li>
+          <li>Select firmware, then click <b>Flash App Update</b>.</li>
+          <li>If the device doesn’t restart automatically, press <b>RESET</b> once.</li>
+        </ol>
+      </div>
 
-    <button id="connectBtn">Connect</button>
-    <button id="flashBtn">Flash</button>
+      <div class="row">
+        <button id="btnConnect">Connect</button>
 
-    <div id="console"></div>
+        <select id="fwSelect"></select>
+
+        <button id="btnFlash" disabled>Flash App Update</button>
+      </div>
+
+      <div class="warn">
+        <b>Important:</b> This page will never erase your device. If you used a generic flasher before and “nothing happened” on boot, it likely wrote to the wrong address or erased flash (which can wipe Preferences).
+      </div>
+
+      <div style="margin:14px 0 8px 0" class="small">Console</div>
+      <div id="log"></div>
+    </div>
   </div>
 
-<script type="module">
-import { ESPLoader, Transport } from "https://cdn.jsdelivr.net/npm/esptool-js@latest/dist/web/index.js";
+  <script type="module">
+    import { ESPLoader, Transport } from "./bundle.js";
 
-let device, transport, loader;
+    // ---- Configure your menu here ----
+    // Put these .bin files in the repo root next to index.html
+    const FIRMWARES = [
+      { label: "Stable (recommended)", file: "fox2_stable.bin" },
+      { label: "Beta",                 file: "fox2_beta.bin"   },
+    ];
 
-function log(msg) {
-  const el = document.getElementById("console");
-  el.textContent += msg + "\n";
-  el.scrollTop = el.scrollHeight;
-}
+    const APP_OFFSET = 0x10000; // app only, keeps partitions/SPIFFS/NVS
+    const BAUD = 115200;        // conservative for reliability on macOS + S2 native USB
 
-async function connectDevice() {
-  try {
-    if (!("serial" in navigator)) {
-      log("WebSerial not supported. Use Chrome/Edge.");
-      return;
+    const logEl = document.getElementById("log");
+    const btnConnect = document.getElementById("btnConnect");
+    const btnFlash = document.getElementById("btnFlash");
+    const fwSelect = document.getElementById("fwSelect");
+
+    let device = null;
+    let transport = null;
+    let loader = null;
+    let connected = false;
+
+    function log(msg) {
+      logEl.textContent += msg + "\n";
+      logEl.scrollTop = logEl.scrollHeight;
+      console.log(msg);
     }
 
-    log("Requesting serial port...");
-    device = await navigator.serial.requestPort();
-
-    transport = new Transport(device);
-
-    loader = new ESPLoader({
-      transport,
-      baudrate: 115200,
-      terminal: { writeLine: log, write: log }
-    });
-
-    log("Connecting...");
-    await loader.connect();
-    log("Connected.");
-  } catch (e) {
-    log("Connect error: " + e.message);
-    console.error(e);
-  }
-}
-
-async function flashDevice() {
-  try {
-    if (!loader) {
-      log("Click Connect first.");
-      return;
+    function setFlashEnabled(on) {
+      btnFlash.disabled = !on;
     }
 
-    log("Fetching firmware.bin...");
-    const res = await fetch("firmware.bin", { cache: "no-store" });
-    const firmware = await res.arrayBuffer();
+    function populateFirmwareMenu() {
+      fwSelect.innerHTML = "";
+      for (const fw of FIRMWARES) {
+        const opt = document.createElement("option");
+        opt.value = fw.file;
+        opt.textContent = fw.label + " — " + fw.file;
+        fwSelect.appendChild(opt);
+      }
+    }
 
-    log("Flashing at 0x10000...");
-    await loader.writeFlash({
-      fileArray: [{ data: firmware, address: 0x10000 }],
-      flashSize: "4MB",
-      compress: true
-    });
+    async function connect() {
+      try {
+        if (!("serial" in navigator)) {
+          log("WebSerial not supported. Use Chrome or Edge (desktop).");
+          return;
+        }
 
-    log("Flash complete!");
-    await loader.hardReset();
-  } catch (e) {
-    log("Flash error: " + e.message);
-    console.error(e);
-  }
-}
+        log("Requesting serial port...");
+        device = await navigator.serial.requestPort();
 
-document.getElementById("connectBtn").onclick = connectDevice;
-document.getElementById("flashBtn").onclick = flashDevice;
+        transport = new Transport(device, true);
 
-</script>
+        loader = new ESPLoader({
+          transport,
+          baudrate: BAUD,
+          terminal: { writeLine: log, write: log },
+        });
+
+        log("Connecting to ROM bootloader...");
+        await loader.connect();
+
+        connected = true;
+        setFlashEnabled(true);
+        log("Connected. (If flashing fails, re-enter BOOT mode and try again.)");
+      } catch (e) {
+        connected = false;
+        setFlashEnabled(false);
+        log("Connect error: " + (e?.message || e));
+      }
+    }
+
+    async function flashApp() {
+      if (!connected || !loader) {
+        log("Not connected. Click Connect first.");
+        return;
+      }
+
+      const filename = fwSelect.value;
+
+      try {
+        setFlashEnabled(false);
+        log(`Fetching ${filename}...`);
+        const res = await fetch(filename, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${filename}`);
+        const bin = await res.arrayBuffer();
+
+        log(`Flashing APP only at 0x${APP_OFFSET.toString(16)} (this preserves Preferences/SPIFFS)...`);
+
+        await loader.writeFlash({
+          fileArray: [{ data: bin, address: APP_OFFSET }],
+          // IMPORTANT: no eraseAll, no partitions, no bootloader
+          compress: true,
+        });
+
+        log("✅ Flash complete. Resetting device...");
+        try {
+          await loader.hardReset();
+        } catch {
+          log("Reset not supported via USB on this board — press RESET once.");
+        }
+
+        log("Done.");
+      } catch (e) {
+        log("Flash error: " + (e?.message || e));
+        log("Tip: Unplug, hold BOOT while plugging in, then Connect + Flash again.");
+      } finally {
+        setFlashEnabled(true);
+      }
+    }
+
+    populateFirmwareMenu();
+
+    btnConnect.addEventListener("click", connect);
+    btnFlash.addEventListener("click", flashApp);
+  </script>
 </body>
 </html>
