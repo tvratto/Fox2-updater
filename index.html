@@ -53,13 +53,12 @@
           transport: transport,
           baudrate: 115200,
           terminal: terminal,
-          debugLogging: true,
-          resetMethod: "no_reset"   // 🔥 critical for your hardware
+          debugLogging: true
         });
 
         terminal.writeLine("Connecting to ESP32...");
 
-        await loader.connect();
+        await loader.connect(false);
 
         terminal.writeLine("✅ Connected successfully!");
         terminal.writeLine("Chip: " + loader.chip.CHIP_NAME);
