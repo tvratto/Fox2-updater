@@ -1,196 +1,201 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8" />
-<title>FOX2 Firmware Updater</title>
-
-<style>
-body {
-  background: #0e1117;
-  color: #e6edf3;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  text-align: center;
-  padding: 40px;
-}
-
-.card {
-  background: #161b22;
-  padding: 30px;
-  border-radius: 12px;
-  max-width: 420px;
-  margin: auto;
-  box-shadow: 0 0 20px rgba(0,0,0,0.4);
-}
-
-h1 {
-  margin-top: 0;
-  font-weight: 600;
-}
-
-button, select {
-  width: 100%;
-  padding: 12px;
-  margin-top: 12px;
-  border-radius: 8px;
-  border: none;
-  font-size: 14px;
-}
-
-button {
-  background: #238636;
-  color: white;
-  cursor: pointer;
-}
-
-button:disabled {
-  background: #30363d;
-  cursor: not-allowed;
-}
-
-select {
-  background: #21262d;
-  color: white;
-}
-
-.progress {
-  margin-top: 20px;
-  height: 10px;
-  background: #30363d;
-  border-radius: 5px;
-  overflow: hidden;
-}
-
-.progress-bar {
-  height: 100%;
-  width: 0%;
-  background: #2ea043;
-  transition: width 0.2s;
-}
-
-.log {
-  margin-top: 20px;
-  background: #0d1117;
-  padding: 10px;
-  font-size: 12px;
-  text-align: left;
-  height: 140px;
-  overflow-y: auto;
-  border-radius: 8px;
-}
-</style>
+  <meta charset="utf-8" />
+  <title>FOX2 Updater</title>
+  <style>
+    body { background:#0e1117; color:#e6edf3; font-family:-apple-system,BlinkMacSystemFont,sans-serif; padding:40px; }
+    .card { background:#161b22; max-width:520px; margin:0 auto; padding:24px; border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,.35); }
+    h1 { margin:0 0 6px 0; font-size:22px; }
+    .sub { margin:0 0 14px 0; color:#9da7b3; font-size:13px; line-height:1.35; }
+    .steps { background:#0d1117; border:1px solid #30363d; padding:12px; border-radius:12px; font-size:13px; color:#c9d1d9; }
+    .steps ol { margin:0; padding-left:18px; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+    button, select { padding:11px 12px; border-radius:10px; border:1px solid #30363d; font-size:14px; }
+    select { background:#0d1117; color:#e6edf3; min-width:260px; flex:1; }
+    button { background:#238636; color:white; cursor:pointer; }
+    button.secondary { background:#21262d; }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    .progress { margin-top:14px; height:10px; background:#30363d; border-radius:999px; overflow:hidden; }
+    .bar { height:100%; width:0%; background:#2ea043; transition: width .15s; }
+    #log { margin-top:14px; white-space:pre-wrap; background:#0b1020; color:#b6ffb6; border-radius:12px; padding:12px; height:180px; overflow:auto; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; border:1px solid #1f2a44; }
+    .pill { display:inline-block; font-size:12px; padding:4px 10px; border-radius:999px; background:#21262d; border:1px solid #30363d; color:#c9d1d9; margin-left:8px; }
+  </style>
 </head>
 
 <body>
+  <div class="card">
+    <h1>FOX2 Firmware Updater <span class="pill">App-only @ 0x10000</span></h1>
+    <p class="sub">
+      This flashes only the application at <b>0x10000</b> (like your working esptool script). It does <b>not</b> erase all, and should preserve partitions/SPIFFS/NVS.
+    </p>
 
-<div class="card">
-  <h1>FOX2 Updater</h1>
+    <div class="steps">
+      <ol>
+        <li><b>Unplug</b> the device.</li>
+        <li>Hold <b>BOOT</b>, then <b>plug USB in</b>. Keep holding for ~2 seconds, then release.</li>
+        <li>Click <b>Connect</b> and pick the USB device.</li>
+        <li>Select firmware and click <b>Flash</b>.</li>
+        <li>If it doesn’t restart, press <b>RESET</b> once.</li>
+      </ol>
+    </div>
 
-  <button id="connectBtn">Connect Device</button>
+    <div class="row">
+      <button id="connect">Connect</button>
+      <button id="disconnect" class="secondary" disabled>Disconnect</button>
+    </div>
 
-  <select id="firmwareSelect" disabled>
-    <option value="">Select Firmware</option>
-    <option value="firmware/fox2_prod.bin">Production</option>
-    <option value="firmware/fox2_beta.bin">Beta</option>
-  </select>
+    <div class="row">
+      <select id="fw" disabled>
+        <option value="">Select firmware…</option>
+        <option value="firmware/fox2_prod.bin">Production</option>
+        <option value="firmware/fox2_beta.bin">Beta</option>
+      </select>
+      <button id="flash" disabled>Flash</button>
+    </div>
 
-  <button id="flashBtn" disabled>Flash Firmware</button>
-
-  <div class="progress">
-    <div class="progress-bar" id="progressBar"></div>
+    <div class="progress"><div class="bar" id="bar"></div></div>
+    <div id="log"></div>
   </div>
 
-  <div class="log" id="log"></div>
-</div>
+  <script type="module">
+    import { ESPLoader, Transport } from "./esptool.js";
 
-<script type="module">
-import { ESPLoader, Transport } from "./esptool.js";
+    const APP_OFFSET = 0x10000;
+    const BAUD = 115200;
 
-const logEl = document.getElementById("log");
-const progressBar = document.getElementById("progressBar");
-const connectBtn = document.getElementById("connectBtn");
-const flashBtn = document.getElementById("flashBtn");
-const firmwareSelect = document.getElementById("firmwareSelect");
+    const logEl = document.getElementById("log");
+    const bar = document.getElementById("bar");
+    const btnConnect = document.getElementById("connect");
+    const btnDisconnect = document.getElementById("disconnect");
+    const btnFlash = document.getElementById("flash");
+    const fwSelect = document.getElementById("fw");
 
-let loader;
+    let port = null;
+    let transport = null;
+    let loader = null;
 
-function log(msg) {
-  logEl.textContent += msg + "\n";
-  logEl.scrollTop = logEl.scrollHeight;
-}
-
-connectBtn.onclick = async () => {
-  try {
-    log("⚡ Enter bootloader mode manually first.");
-
-    const port = await navigator.serial.requestPort();
-    const transport = new Transport(port);
-
-    loader = new ESPLoader({
-      transport,
-      baudrate: 115200,
-      terminal: {
-        write: () => {},
-        writeLine: () => {},
-        clean: () => {}
+    // Terminal object that satisfies esptool-js expectations
+    const terminal = {
+      clean() {
+        logEl.textContent = "";
       },
-      debugLogging: false
-    });
+      writeLine(s) {
+        logEl.textContent += s + "\n";
+        logEl.scrollTop = logEl.scrollHeight;
+        console.log(s);
+      },
+      write(s) {
+        // esptool-js sometimes calls write() with partial chunks
+        logEl.textContent += s;
+        logEl.scrollTop = logEl.scrollHeight;
+        console.log(s);
+      }
+    };
 
-    log("Connecting...");
-    await loader.connect(false);
-
-    log("✅ Connected: " + loader.chip.CHIP_NAME);
-
-    firmwareSelect.disabled = false;
-    flashBtn.disabled = false;
-
-  } catch (err) {
-    log("❌ " + err.message);
-  }
-};
-
-flashBtn.onclick = async () => {
-  try {
-    const firmwarePath = firmwareSelect.value;
-    if (!firmwarePath) {
-      alert("Select firmware first.");
-      return;
+    function setConnectedUI(on) {
+      fwSelect.disabled = !on;
+      btnFlash.disabled = !on;
+      btnDisconnect.disabled = !on;
+      btnConnect.disabled = on;
     }
 
-    flashBtn.disabled = true;
-    progressBar.style.width = "0%";
+    async function safeClosePrevious() {
+      // Close any old connection so we don't hit "port already open"
+      try { if (transport?.disconnect) await transport.disconnect(); } catch {}
+      try { if (port?.close) await port.close(); } catch {}
+      transport = null;
+      loader = null;
+      port = null;
+    }
 
-    log("Downloading firmware...");
+    btnConnect.onclick = async () => {
+      try {
+        terminal.clean();
+        terminal.writeLine("⚡ Enter bootloader mode manually first.");
+        terminal.writeLine("Requesting serial port...");
 
-    const response = await fetch(firmwarePath);
-    const firmwareData = await response.arrayBuffer();
+        await safeClosePrevious();
 
-    log("Flashing...");
+        port = await navigator.serial.requestPort();
+        terminal.writeLine("Creating transport...");
 
-    await loader.flash({
-      fileArray: [{
-        data: firmwareData,
-        address: 0x1000
-      }],
-      flashSize: "keep",
-      eraseAll: false,
-      compress: true,
-      reportProgress: (fileIndex, written, total) => {
-        const percent = Math.floor((written / total) * 100);
-        progressBar.style.width = percent + "%";
+        // NOTE:
+        // If your earlier “fix” required (port, true), switch to: new Transport(port, true)
+        transport = new Transport(port);
+
+        loader = new ESPLoader({
+          transport: transport,
+          baudrate: BAUD,
+          terminal: terminal,
+          debugLogging: true
+        });
+
+        terminal.writeLine("Connecting to ESP32...");
+        // 🔥 CRITICAL — skip auto reset (matches your known-good snippet)
+        await loader.connect(false);
+
+        terminal.writeLine("✅ Connected successfully!");
+        terminal.writeLine("Chip: " + loader.chip.CHIP_NAME);
+
+        setConnectedUI(true);
+
+      } catch (err) {
+        terminal.writeLine("❌ ERROR: " + (err?.message || err));
+        console.error(err);
+        setConnectedUI(false);
       }
-    });
+    };
 
-    log("🎉 Flash complete!");
+    btnDisconnect.onclick = async () => {
+      terminal.writeLine("Disconnecting...");
+      await safeClosePrevious();
+      setConnectedUI(false);
+      terminal.writeLine("Done.");
+    };
 
-    flashBtn.disabled = false;
+    btnFlash.onclick = async () => {
+      try {
+        const filename = fwSelect.value;
+        if (!filename) {
+          alert("Select firmware first.");
+          return;
+        }
+        if (!loader) {
+          terminal.writeLine("Not connected.");
+          return;
+        }
 
-  } catch (err) {
-    log("❌ Flash error: " + err.message);
-    flashBtn.disabled = false;
-  }
-};
-</script>
+        btnFlash.disabled = true;
+        bar.style.width = "0%";
 
+        terminal.writeLine("Fetching " + filename + "...");
+        const res = await fetch(filename, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${filename}`);
+        const bin = await res.arrayBuffer();
+
+        terminal.writeLine(`Flashing APP at 0x${APP_OFFSET.toString(16)}...`);
+
+        // Use writeFlash (this is the one that matches how you were using it earlier)
+        await loader.writeFlash({
+          fileArray: [{ data: bin, address: APP_OFFSET }],
+          compress: true,
+          reportProgress: (fileIndex, written, total) => {
+            const pct = Math.floor((written / total) * 100);
+            bar.style.width = pct + "%";
+          }
+        });
+
+        terminal.writeLine("🎉 Flash complete!");
+        terminal.writeLine("If it doesn't reboot automatically, press RESET once.");
+
+      } catch (err) {
+        terminal.writeLine("❌ Flash error: " + (err?.message || err));
+        console.error(err);
+      } finally {
+        btnFlash.disabled = false;
+      }
+    };
+  </script>
 </body>
 </html>
