@@ -4,10 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FOX2 Firmware Updater</title>
-
-<!-- esptool-js loaded as a plain script (UMD bundle) — same approach as espressif.github.io/esptool-js -->
-<script src="https://unpkg.com/esptool-js@0.4.3/bundle.js"></script>
-
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
 
@@ -56,239 +52,112 @@
     z-index: 1;
   }
 
-  .logo-row {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin-bottom: 10px;
-  }
+  .logo-row { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
 
   .logo-badge {
-    width: 44px;
-    height: 44px;
+    width: 44px; height: 44px;
     border-radius: 12px;
     background: linear-gradient(135deg, var(--accent), #c2410c);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: 'Space Mono', monospace;
-    font-weight: 700;
-    font-size: 14px;
-    color: white;
-    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Space Mono', monospace; font-weight: 700; font-size: 14px;
+    color: white; flex-shrink: 0;
   }
 
   h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.3px; }
 
-  .subtitle {
-    font-size: 14px;
-    color: var(--muted);
-    margin-top: 6px;
-    line-height: 1.5;
-  }
+  .subtitle { font-size: 14px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
 
   .compat-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 14px;
-    padding: 5px 10px;
-    border-radius: 6px;
-    background: rgba(249,115,22,0.08);
-    border: 1px solid rgba(249,115,22,0.2);
-    font-size: 12px;
-    color: var(--accent2);
-    font-family: 'Space Mono', monospace;
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 14px; padding: 5px 10px; border-radius: 6px;
+    background: rgba(249,115,22,0.08); border: 1px solid rgba(249,115,22,0.2);
+    font-size: 12px; color: var(--accent2); font-family: 'Space Mono', monospace;
   }
 
   main {
-    width: 100%;
-    max-width: 640px;
+    width: 100%; max-width: 640px;
     padding: 0 24px 80px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    position: relative;
-    z-index: 1;
+    display: flex; flex-direction: column; gap: 14px;
+    position: relative; z-index: 1;
   }
 
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    overflow: hidden;
-  }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
 
   .card-header {
-    padding: 16px 20px 13px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    padding: 16px 20px 13px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
   }
 
   .step-num {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: rgba(249,115,22,0.12);
-    border: 1px solid rgba(249,115,22,0.3);
-    color: var(--accent);
-    font-family: 'Space Mono', monospace;
-    font-size: 11px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: rgba(249,115,22,0.12); border: 1px solid rgba(249,115,22,0.3);
+    color: var(--accent); font-family: 'Space Mono', monospace; font-size: 11px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
 
   .card-header h2 { font-size: 14px; font-weight: 600; }
   .card-body { padding: 18px 20px; }
 
-  /* ── Info note ── */
   .info-note {
-    display: flex;
-    gap: 10px;
-    padding: 12px 14px;
-    background: rgba(107,114,128,0.06);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    font-size: 13px;
-    color: var(--muted);
-    line-height: 1.6;
+    display: flex; gap: 10px; padding: 12px 14px;
+    background: rgba(107,114,128,0.06); border: 1px solid var(--border);
+    border-radius: 8px; font-size: 13px; color: var(--muted); line-height: 1.6;
     margin-bottom: 18px;
   }
   .info-note svg { flex-shrink: 0; margin-top: 2px; }
   .info-note strong { color: var(--text); }
 
-  /* ── Buttons ── */
   .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 11px 22px;
-    border-radius: 10px;
-    font-family: 'DM Sans', sans-serif;
-    font-weight: 600;
-    font-size: 14px;
-    cursor: pointer;
-    border: none;
-    transition: all 0.15s;
-    letter-spacing: 0.1px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 11px 22px; border-radius: 10px;
+    font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 14px;
+    cursor: pointer; border: none; transition: all 0.15s; letter-spacing: 0.1px;
   }
-
-  .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
-
-  .btn-primary {
-    background: var(--accent);
-    color: white;
-  }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: white; }
   .btn-primary:hover:not(:disabled) {
-    background: #ea6c0a;
-    transform: translateY(-1px);
+    background: #ea6c0a; transform: translateY(-1px);
     box-shadow: 0 6px 20px rgba(249,115,22,0.35);
   }
-
-  .btn-secondary {
-    background: transparent;
-    color: var(--muted);
-    border: 1px solid var(--border);
-  }
-  .btn-secondary:hover:not(:disabled) {
-    border-color: var(--text);
-    color: var(--text);
-  }
-
+  .btn-secondary { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .btn-secondary:hover:not(:disabled) { border-color: var(--text); color: var(--text); }
   .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
 
-  /* ── Status chip ── */
   .status-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 5px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 500;
-    background: rgba(107,114,128,0.1);
-    border: 1px solid rgba(107,114,128,0.2);
-    color: var(--muted);
-    margin-bottom: 16px;
-    transition: all 0.3s;
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;
+    background: rgba(107,114,128,0.1); border: 1px solid rgba(107,114,128,0.2);
+    color: var(--muted); margin-bottom: 16px; transition: all 0.3s;
   }
   .status-chip.connected { background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.3); color: var(--success); }
   .status-chip.flashing  { background: rgba(249,115,22,0.08); border-color: rgba(249,115,22,0.3); color: var(--accent); }
-  .status-chip.error     { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.3); color: var(--error); }
-
-  .status-chip .dot {
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: currentColor;
-    flex-shrink: 0;
-  }
-  .status-chip.connected .dot,
-  .status-chip.flashing .dot { animation: blink 1.5s ease infinite; }
-
+  .status-chip.error     { background: rgba(239,68,68,0.08);  border-color: rgba(239,68,68,0.3);  color: var(--error); }
+  .status-chip .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+  .status-chip.connected .dot, .status-chip.flashing .dot { animation: blink 1.5s ease infinite; }
   @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
-  /* ── Progress ── */
   .progress-wrap { margin: 16px 0 4px; display: none; }
-
-  .progress-bar-bg {
-    width: 100%; height: 6px;
-    background: var(--border);
-    border-radius: 3px;
-    overflow: hidden;
-  }
-
+  .progress-bar-bg { width: 100%; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
   .progress-bar-fill {
     height: 100%; width: 0%;
     background: linear-gradient(90deg, var(--accent), var(--accent2));
-    border-radius: 3px;
-    transition: width 0.2s ease;
+    border-radius: 3px; transition: width 0.2s ease;
   }
-
   .progress-label {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 8px;
-    font-size: 12px;
-    color: var(--muted);
-    font-family: 'Space Mono', monospace;
+    display: flex; justify-content: space-between; margin-top: 8px;
+    font-size: 12px; color: var(--muted); font-family: 'Space Mono', monospace;
   }
 
-  /* ── Log ── */
-  .log-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin: 16px 0 8px;
-  }
-
-  .log-label {
-    font-size: 11px;
-    color: var(--muted);
-    font-family: 'Space Mono', monospace;
-    letter-spacing: 0.5px;
-  }
+  .log-header { display: flex; justify-content: space-between; align-items: center; margin: 16px 0 8px; }
+  .log-label { font-size: 11px; color: var(--muted); font-family: 'Space Mono', monospace; letter-spacing: 0.5px; }
 
   .log-area {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px 14px;
-    height: 200px;
-    overflow-y: auto;
-    font-family: 'Space Mono', monospace;
-    font-size: 11.5px;
-    line-height: 1.7;
-    color: var(--muted);
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; height: 200px; overflow-y: auto;
+    font-family: 'Space Mono', monospace; font-size: 11.5px; line-height: 1.7; color: var(--muted);
   }
-
   .log-area::-webkit-scrollbar { width: 4px; }
   .log-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
   .log-line { display: block; }
   .log-line.info   { color: #94a3b8; }
   .log-line.ok     { color: var(--success); }
@@ -296,66 +165,36 @@
   .log-line.err    { color: var(--error); }
   .log-line.accent { color: var(--accent); }
 
-  /* ── Success ── */
   #flash-success {
-    display: none;
-    text-align: center;
-    padding: 32px 20px;
+    display: none; text-align: center; padding: 32px 20px;
     animation: fadeUp 0.4s ease;
   }
-
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(8px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
+  @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
   #flash-success .check-ring {
-    width: 56px; height: 56px;
-    border-radius: 50%;
-    background: rgba(34,197,94,0.1);
-    border: 2px solid var(--success);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 16px;
-    color: var(--success);
+    width: 56px; height: 56px; border-radius: 50%;
+    background: rgba(34,197,94,0.1); border: 2px solid var(--success);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 16px; color: var(--success);
   }
-
   #flash-success h3 { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
   #flash-success p  { font-size: 13px; color: var(--muted); line-height: 1.6; }
 
   .divider { height: 1px; background: var(--border); margin: 16px 0; }
 
-  /* ── Footer ── */
   .footer-note {
-    max-width: 640px;
-    width: 100%;
-    padding: 0 24px 48px;
-    font-size: 12px;
-    color: var(--muted);
-    line-height: 1.7;
-    text-align: center;
-    position: relative;
-    z-index: 1;
+    max-width: 640px; width: 100%; padding: 0 24px 48px;
+    font-size: 12px; color: var(--muted); line-height: 1.7;
+    text-align: center; position: relative; z-index: 1;
   }
   .footer-note a { color: var(--accent); text-decoration: none; }
   .footer-note a:hover { text-decoration: underline; }
 
-  /* ── No serial warning ── */
   #no-serial {
-    display: none;
-    max-width: 640px;
-    width: 100%;
-    margin: 0 24px 16px;
-    padding: 14px 18px;
-    background: rgba(239,68,68,0.08);
-    border: 1px solid rgba(239,68,68,0.3);
-    border-radius: 10px;
-    color: #fca5a5;
-    font-size: 13px;
-    line-height: 1.6;
-    position: relative;
-    z-index: 1;
+    display: none; max-width: 640px; width: 100%; margin: 0 24px 16px;
+    padding: 14px 18px; background: rgba(239,68,68,0.08);
+    border: 1px solid rgba(239,68,68,0.3); border-radius: 10px;
+    color: #fca5a5; font-size: 13px; line-height: 1.6;
+    position: relative; z-index: 1;
   }
 </style>
 </head>
@@ -364,9 +203,7 @@
 <header>
   <div class="logo-row">
     <div class="logo-badge">F2</div>
-    <div>
-      <h1>FOX2 Firmware Updater</h1>
-    </div>
+    <div><h1>FOX2 Firmware Updater</h1></div>
   </div>
   <p class="subtitle">Flash firmware to your FOX2 breath analyzer directly from the browser — no drivers or software required.</p>
   <div class="compat-badge">
@@ -383,7 +220,7 @@
 
 <main>
 
-  <!-- ── STEP 1: Prepare ── -->
+  <!-- Step 1 -->
   <div class="card">
     <div class="card-header">
       <div class="step-num">1</div>
@@ -393,18 +230,14 @@
       <div class="info-note" style="margin-bottom:0">
         <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <circle cx="12" cy="12" r="10"/>
-          <line x1="12" y1="8" x2="12" y2="12"/>
-          <line x1="12" y1="16" x2="12.01" y2="16"/>
+          <line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
-        <span>
-          Hold the <strong>BOOT button</strong> on FOX2, plug in USB, then release BOOT.
-          The device is now in firmware update mode and ready to connect.
-        </span>
+        <span>Hold the <strong>BOOT button</strong> on FOX2, plug in USB, then release BOOT. The device is now in firmware update mode.</span>
       </div>
     </div>
   </div>
 
-  <!-- ── STEP 2: Connect ── -->
+  <!-- Step 2 -->
   <div class="card">
     <div class="card-header">
       <div class="step-num">2</div>
@@ -426,7 +259,7 @@
     </div>
   </div>
 
-  <!-- ── STEP 3: Flash ── -->
+  <!-- Step 3 -->
   <div class="card">
     <div class="card-header">
       <div class="step-num">3</div>
@@ -450,9 +283,7 @@
         </div>
 
         <div class="progress-wrap" id="progress-wrap">
-          <div class="progress-bar-bg">
-            <div class="progress-bar-fill" id="progress-fill"></div>
-          </div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-fill"></div></div>
           <div class="progress-label">
             <span id="progress-detail">Writing…</span>
             <span id="progress-pct">0%</span>
@@ -460,7 +291,6 @@
         </div>
 
         <div class="divider"></div>
-
         <div class="log-header">
           <span class="log-label">OUTPUT LOG</span>
           <button class="btn btn-secondary" onclick="clearLog()" style="padding:4px 10px;font-size:11px">Clear</button>
@@ -491,49 +321,48 @@
   <a href="https://github.com/your-org/fox2" target="_blank">View on GitHub</a>
 </div>
 
-<script>
+<script type="module">
+  // esptool-js 0.4.5 — same version Espressif's own tool uses, with browser bundle fixes
+  import { ESPLoader, Transport } from 'https://unpkg.com/esptool-js@0.4.5/bundle.js';
+
+  // ── Config ────────────────────────────────────────────────────
+  const FIRMWARE_URL    = 'firmware/fox2_stable.bin';
+  const FIRMWARE_OFFSET = 0x10000; // app-only binary
+
+  // ── State ─────────────────────────────────────────────────────
+  let transport = null;
+  let esploader = null;
+
   // ── Check Web Serial ──────────────────────────────────────────
   if (!('serial' in navigator)) {
     document.getElementById('no-serial').style.display = 'block';
   }
 
-  // ── State ──────────────────────────────────────────────────────
-  var transport  = null;
-  var esploader  = null;
-  var device     = null;
-
-  // Firmware to flash — update path to match your repo
-  var FIRMWARE_URL    = 'firmware/fox2_stable.bin';
-  var FIRMWARE_OFFSET = 0x10000; // app-only binary
+  // ── Logger ────────────────────────────────────────────────────
+  const espLogger = {
+    log:   (msg) => log(msg, 'info'),
+    debug: (msg) => log(msg, 'info'),
+    error: (msg) => log(msg, 'err'),
+  };
 
   // ── Logging ───────────────────────────────────────────────────
-  function log(msg, type) {
-    type = type || 'info';
-    var area = document.getElementById('log');
-    var line = document.createElement('span');
-    line.className = 'log-line ' + type;
-    var ts = new Date().toLocaleTimeString('en-US', { hour12: false });
-    line.textContent = '[' + ts + '] ' + msg + '\n';
+  function log(msg, type = 'info') {
+    const area = document.getElementById('log');
+    const line = document.createElement('span');
+    line.className = `log-line ${type}`;
+    const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
+    line.textContent = `[${ts}] ${msg}\n`;
     area.appendChild(line);
     area.scrollTop = area.scrollHeight;
   }
 
-  function clearLog() {
-    document.getElementById('log').innerHTML = '';
-  }
-
-  // esptool-js logger interface
-  var logger = {
-    log:   function(msg) { log(msg, 'info'); },
-    debug: function(msg) { log(msg, 'info'); },
-    error: function(msg) { log(msg, 'err');  },
-  };
+  function clearLog() { document.getElementById('log').innerHTML = ''; }
+  window.clearLog = clearLog;
 
   // ── UI helpers ────────────────────────────────────────────────
   function setStatus(state, text) {
-    var chip = document.getElementById('status-chip');
-    chip.className = 'status-chip';
-    if (state) chip.classList.add(state);
+    const chip = document.getElementById('status-chip');
+    chip.className = 'status-chip' + (state ? ` ${state}` : '');
     document.getElementById('status-text').textContent = text;
   }
 
@@ -546,80 +375,76 @@
     }
   }
 
-  function resetUI() {
+  window.resetUI = function() {
     document.getElementById('flash-main').style.display = 'block';
     document.getElementById('flash-success').style.display = 'none';
     document.getElementById('btn-flash').disabled = false;
     showProgress(false);
     clearLog();
     setStatus('connected', 'Connected · ready to flash');
-  }
+  };
 
   function bufferToString(buf) {
-    var bytes = new Uint8Array(buf);
-    var str = '';
-    // Process in chunks to avoid call stack overflow on large binaries
-    var CHUNK = 8192;
-    for (var i = 0; i < bytes.length; i += CHUNK) {
-      str += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+    const bytes = new Uint8Array(buf);
+    let str = '';
+    const CHUNK = 8192;
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      str += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
     }
     return str;
   }
 
   // ── Connect ───────────────────────────────────────────────────
-  async function connectDevice() {
+  window.connectDevice = async function() {
     try {
-      device = await navigator.serial.requestPort({});
-      transport = new esptooljs.Transport(device, true);
-
+      const device = await navigator.serial.requestPort({});
+      transport = new Transport(device, true);
       log('Connecting…', 'accent');
 
-      esploader = new esptooljs.ESPLoader({
-        transport: transport,
-        baudrate:  921600,
+      esploader = new ESPLoader({
+        transport,
+        baudrate: 921600,
         romBaudrate: 115200,
-        logger: logger,
+        logger: espLogger,
       });
 
-      // no_reset: skip RTS/DTR reset — device is already in bootloader mode
-      var chip = await esploader.main({ mode: 'no_reset' });
-      log('Connected! Chip: ' + chip, 'ok');
+      // no_reset: skip RTS/DTR — device is already in bootloader mode
+      const chip = await esploader.main({ mode: 'no_reset' });
+      log(`Connected! Chip: ${chip}`, 'ok');
 
-      setStatus('connected', 'Connected · ' + chip);
+      setStatus('connected', `Connected · ${chip}`);
       document.getElementById('btn-connect').style.display = 'none';
       document.getElementById('btn-disconnect').style.display = '';
       document.getElementById('btn-flash').disabled = false;
 
     } catch (err) {
-      log('Connection failed: ' + err.message, 'err');
+      log(`Connection failed: ${err.message}`, 'err');
       setStatus('error', 'Connection failed');
     }
-  }
+  };
 
   // ── Disconnect ────────────────────────────────────────────────
-  async function disconnectDevice() {
-    try { if (transport) await transport.disconnect(); } catch(e) {}
-    transport = null; esploader = null; device = null;
+  window.disconnectDevice = async function() {
+    try { if (transport) await transport.disconnect(); } catch(_) {}
+    transport = null; esploader = null;
     setStatus(null, 'Not connected');
     document.getElementById('btn-connect').style.display = '';
     document.getElementById('btn-disconnect').style.display = 'none';
     document.getElementById('btn-flash').disabled = true;
     log('Disconnected.', 'warn');
-  }
+  };
 
   // ── Flash ─────────────────────────────────────────────────────
-  async function flashFirmware() {
-    log('Downloading ' + FIRMWARE_URL + '…', 'accent');
-
-    var binary;
+  window.flashFirmware = async function() {
+    log(`Downloading ${FIRMWARE_URL}…`, 'accent');
+    let binary;
     try {
-      var resp = await fetch(FIRMWARE_URL);
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      var buf = await resp.arrayBuffer();
-      binary = bufferToString(buf);
-      log('Downloaded ' + (buf.byteLength / 1024).toFixed(1) + ' KB', 'ok');
-    } catch (err) {
-      log('Download failed: ' + err.message, 'err');
+      const resp = await fetch(FIRMWARE_URL);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      binary = bufferToString(await resp.arrayBuffer());
+      log(`Downloaded ${(binary.length / 1024).toFixed(1)} KB`, 'ok');
+    } catch(err) {
+      log(`Download failed: ${err.message}`, 'err');
       return;
     }
 
@@ -635,13 +460,13 @@
         flashFreq: 'keep',
         eraseAll:  false,
         compress:  true,
-        reportProgress: function(fileIndex, written, total) {
-          var pct = Math.round((written / total) * 100);
-          document.getElementById('progress-fill').style.width = pct + '%';
-          document.getElementById('progress-pct').textContent = pct + '%';
+        reportProgress(fileIndex, written, total) {
+          const pct = Math.round((written / total) * 100);
+          document.getElementById('progress-fill').style.width = `${pct}%`;
+          document.getElementById('progress-pct').textContent = `${pct}%`;
           document.getElementById('progress-detail').textContent =
             written < total
-              ? 'Writing ' + (written/1024).toFixed(0) + ' / ' + (total/1024).toFixed(0) + ' KB'
+              ? `Writing ${(written/1024).toFixed(0)} / ${(total/1024).toFixed(0)} KB`
               : 'Verifying…';
         },
       });
@@ -652,13 +477,13 @@
       document.getElementById('flash-main').style.display = 'none';
       document.getElementById('flash-success').style.display = 'block';
 
-    } catch (err) {
-      log('Flash failed: ' + err.message, 'err');
+    } catch(err) {
+      log(`Flash failed: ${err.message}`, 'err');
       setStatus('error', 'Flash failed');
       showProgress(false);
       document.getElementById('btn-flash').disabled = false;
     }
-  }
+  };
 </script>
 
 </body>
