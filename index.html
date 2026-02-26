@@ -2,191 +2,105 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>FOX2 Updater</title>
+  <title>FOX2 Minimal Connector</title>
   <style>
-    body { background:#0e1117; color:#e6edf3; font-family:-apple-system,BlinkMacSystemFont,sans-serif; padding:40px; }
-    .card { background:#161b22; max-width:520px; margin:0 auto; padding:24px; border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,.35); }
-    h1 { margin:0 0 6px 0; font-size:22px; }
-    .sub { margin:0 0 14px 0; color:#9da7b3; font-size:13px; line-height:1.35; }
-    .steps { background:#0d1117; border:1px solid #30363d; padding:12px; border-radius:12px; font-size:13px; color:#c9d1d9; }
-    .steps ol { margin:0; padding-left:18px; }
-    .row { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
-    button, select { padding:11px 12px; border-radius:10px; border:1px solid #30363d; font-size:14px; }
-    select { background:#0d1117; color:#e6edf3; min-width:260px; flex:1; }
-    button { background:#238636; color:white; cursor:pointer; }
-    button.secondary { background:#21262d; }
-    button:disabled { opacity:.5; cursor:not-allowed; }
-    .progress { margin-top:14px; height:10px; background:#30363d; border-radius:999px; overflow:hidden; }
-    .bar { height:100%; width:0%; background:#2ea043; transition: width .15s; }
-    #log { margin-top:14px; white-space:pre-wrap; background:#0b1020; color:#b6ffb6; border-radius:12px; padding:12px; height:180px; overflow:auto; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; border:1px solid #1f2a44; }
-    .pill { display:inline-block; font-size:12px; padding:4px 10px; border-radius:999px; background:#21262d; border:1px solid #30363d; color:#c9d1d9; margin-left:8px; }
+    body {
+      background: #0e1117;
+      color: #e6edf3;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      padding: 40px;
+    }
+    .card {
+      background: #161b22;
+      max-width: 480px;
+      margin: auto;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.4);
+    }
+    button {
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: none;
+      background: #238636;
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    #log {
+      margin-top: 16px;
+      background: #0b1020;
+      border-radius: 8px;
+      padding: 12px;
+      height: 200px;
+      overflow: auto;
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      border: 1px solid #1f2a44;
+    }
   </style>
 </head>
 
 <body>
   <div class="card">
-    <h1>FOX2 Firmware Updater <span class="pill">App-only @ 0x10000</span></h1>
-    <p class="sub">
-      This flashes only the application at <b>0x10000</b> (like your working esptool script). It does <b>not</b> erase all, and should preserve partitions/SPIFFS/NVS.
-    </p>
-
-    <div class="steps">
-      <ol>
-        <li><b>Unplug</b> the device.</li>
-        <li>Hold <b>BOOT</b>, then <b>plug USB in</b>. Keep holding for ~2 seconds, then release.</li>
-        <li>Click <b>Connect</b> and pick the USB device.</li>
-        <li>Select firmware and click <b>Flash</b>.</li>
-        <li>If it doesn’t restart, press <b>RESET</b> once.</li>
-      </ol>
-    </div>
-
-    <div class="row">
-      <button id="connect">Connect</button>
-      <button id="disconnect" class="secondary" disabled>Disconnect</button>
-    </div>
-
-    <div class="row">
-      <select id="fw" disabled>
-        <option value="">Select firmware…</option>
-        <option value="firmware/fox2_prod.bin">Production</option>
-        <option value="firmware/fox2_beta.bin">Beta</option>
-      </select>
-      <button id="flash" disabled>Flash</button>
-    </div>
-
-    <div class="progress"><div class="bar" id="bar"></div></div>
+    <h2>FOX2 ESP32-S2 Connector</h2>
+    <p>Manually enter bootloader mode before clicking connect.</p>
+    <button id="connect">Connect</button>
     <div id="log"></div>
   </div>
 
   <script type="module">
     import { ESPLoader, Transport } from "./esptool.js";
 
-    const APP_OFFSET = 0x10000;
-    const BAUD = 115200;
-
     const logEl = document.getElementById("log");
-    const bar = document.getElementById("bar");
-    const btnConnect = document.getElementById("connect");
-    const btnDisconnect = document.getElementById("disconnect");
-    const btnFlash = document.getElementById("flash");
-    const fwSelect = document.getElementById("fw");
 
-    let port = null;
-    let transport = null;
-    let loader = null;
-
-    // Terminal object that satisfies esptool-js expectations
     const terminal = {
       clean() {
         logEl.textContent = "";
       },
-      writeLine(s) {
-        logEl.textContent += s + "\n";
+      writeLine(text) {
+        logEl.textContent += text + "\n";
         logEl.scrollTop = logEl.scrollHeight;
-        console.log(s);
+        console.log(text);
       },
-      write(s) {
-        // esptool-js sometimes calls write() with partial chunks
-        logEl.textContent += s;
+      write(text) {
+        logEl.textContent += text;
         logEl.scrollTop = logEl.scrollHeight;
-        console.log(s);
+        console.log(text);
       }
     };
 
-    function setConnectedUI(on) {
-      fwSelect.disabled = !on;
-      btnFlash.disabled = !on;
-      btnDisconnect.disabled = !on;
-      btnConnect.disabled = on;
-    }
-
-async function safeClosePrevious() {
-  try {  transport?.disconnect(); } catch {}
-  try {  port?.close(); } catch {}
-  transport = null;
-  loader = null;
-  port = null;
-}
-
-btnConnect.onclick = async () => {
-  try {
-    terminal.clean();
-    terminal.writeLine("Put device in bootloader mode FIRST.");
-
-    await safeClosePrevious();  // 🔥 must await
-
-    port = await navigator.serial.requestPort();
-
-    transport = new Transport(port, true);  // disable signal toggling
-
-    loader = new ESPLoader({
-      transport,
-      baudrate: 115200,
-      terminal,
-      debugLogging: true,
-      resetMethod: "no_reset"
-    });
-
-    terminal.writeLine("Connecting...");
-
-    await loader.connect(false);
-
-    terminal.writeLine("Connected!");
-    terminal.writeLine("Chip: " + loader.chip.CHIP_NAME);
-
-    terminal.writeLine("Loading stub...");
-    await loader.runStub();
-
-    await loader.setBaudrate(460800);
-
-    terminal.writeLine("Stub running. Ready to flash.");
-
-  } catch (err) {
-    terminal.writeLine("ERROR: " + err.message);
-    console.error(err);
-  }
-};
-    
-    btnFlash.onclick = async () => {
+    document.getElementById("connect").onclick = async () => {
       try {
-        const filename = fwSelect.value;
-        if (!filename) {
-          alert("Select firmware first.");
-          return;
-        }
-        if (!loader) {
-          terminal.writeLine("Not connected.");
-          return;
-        }
+        terminal.clean();
+        terminal.writeLine("⚡ Enter bootloader mode manually first.");
+        terminal.writeLine("Requesting serial port...");
 
-        btnFlash.disabled = true;
-        bar.style.width = "0%";
+        const port = await navigator.serial.requestPort();
 
-        terminal.writeLine("Fetching " + filename + "...");
-        const res = await fetch(filename, { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${filename}`);
-        const bin = await res.arrayBuffer();
+        terminal.writeLine("Creating transport...");
 
-        terminal.writeLine(`Flashing APP at 0x${APP_OFFSET.toString(16)}...`);
+        const transport = new Transport(port);
 
-        // Use writeFlash (this is the one that matches how you were using it earlier)
-        await loader.writeFlash({
-          fileArray: [{ data: bin, address: APP_OFFSET }],
-          compress: true,
-          reportProgress: (fileIndex, written, total) => {
-            const pct = Math.floor((written / total) * 100);
-            bar.style.width = pct + "%";
-          }
+        const loader = new ESPLoader({
+          transport: transport,
+          baudrate: 115200,
+          terminal: terminal,
+          debugLogging: true
         });
 
-        terminal.writeLine("🎉 Flash complete!");
-        terminal.writeLine("If it doesn't reboot automatically, press RESET once.");
+        terminal.writeLine("Connecting to ESP32...");
+
+        // Skip auto reset
+        await loader.connect(false);
+
+        terminal.writeLine("✅ Connected successfully!");
+        terminal.writeLine("Chip: " + loader.chip.CHIP_NAME);
 
       } catch (err) {
-        terminal.writeLine("❌ Flash error: " + (err?.message || err));
+        terminal.writeLine("❌ ERROR: " + err.message);
         console.error(err);
-      } finally {
-        btnFlash.disabled = false;
       }
     };
   </script>
