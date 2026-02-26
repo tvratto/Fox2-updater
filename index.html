@@ -11,6 +11,8 @@
 </head>
 <body>
 
+  <script src="https://unpkg.com/esptool-js@latest/bundle.js"></script>
+
 <h2>Fox2 App Updater</h2>
 
 <p>
@@ -58,7 +60,7 @@ document.getElementById("btnUpdate").onclick = async () => {
     log("Connected to " + loader.chip.CHIP_NAME);
 
     log("Fetching app firmware...");
-    const response = await fetch("./firmware/fox2_app.bin");
+    const response = await fetch("./firmware/fox2_stable.bin");
     const firmware = new Uint8Array(await response.arrayBuffer());
 
     log("Flashing app at 0x10000...");
