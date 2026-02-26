@@ -113,29 +113,33 @@ btnConnect.onclick = async () => {
     terminal.clean();
     terminal.writeLine("Put device in bootloader mode FIRST.");
 
-     safeClosePrevious();
+    await safeClosePrevious();  // 🔥 must await
 
-    port =  navigator.serial.requestPort();
+    port = await navigator.serial.requestPort();
 
-port = await navigator.serial.requestPort();
+    transport = new Transport(port, true);  // disable signal toggling
 
-transport = new Transport(port, true);   // true = disable DTR/RTS in bundled builds
+    loader = new ESPLoader({
+      transport,
+      baudrate: 115200,
+      terminal,
+      debugLogging: true,
+      resetMethod: "no_reset"
+    });
 
-loader = new ESPLoader({
-  transport,
-  baudrate: 115200,
-  terminal,
-  debugLogging: true,
-  resetMethod: "no_reset"
-});
+    terminal.writeLine("Connecting...");
 
-await loader.connect(false);
-await loader.runStub();
-await loader.setBaudrate(460800);
-    
+    await loader.connect(false);
 
     terminal.writeLine("Connected!");
     terminal.writeLine("Chip: " + loader.chip.CHIP_NAME);
+
+    terminal.writeLine("Loading stub...");
+    await loader.runStub();
+
+    await loader.setBaudrate(460800);
+
+    terminal.writeLine("Stub running. Ready to flash.");
 
   } catch (err) {
     terminal.writeLine("ERROR: " + err.message);
