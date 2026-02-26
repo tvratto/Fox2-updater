@@ -21,7 +21,12 @@ function log(s) {
 
 document.getElementById("connect").onclick = async () => {
   try {
+    log("Requesting serial port...");
     const device = await navigator.serial.requestPort();
+
+    log("Opening serial port...");
+    await device.open({ baudRate: 115200 });
+
     const transport = new Transport(device);
 
     const loader = new ESPLoader({
@@ -34,7 +39,9 @@ document.getElementById("connect").onclick = async () => {
       },
     });
 
+    log("Connecting...");
     await loader.connect();
+
     log("Connected!");
   } catch (e) {
     log("Error: " + e.message);
