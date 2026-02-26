@@ -9,143 +9,86 @@
     .card { background:#fff; border-radius:12px; box-shadow:0 6px 24px rgba(0,0,0,.12); padding:24px; }
     h1 { margin:0 0 8px 0; font-size:22px; }
     .sub { color:#444; margin:0 0 18px 0; }
-    .steps { background:#f8fafc; border:1px solid #e5e7eb; border-radius:10px; padding:14px 14px 6px 14px; margin:14px 0; }
-    .steps ol { margin:0 0 0 18px; padding:0; }
-    .steps li { margin:8px 0; }
+    .steps { background:#f8fafc; border:1px solid #e5e7eb; border-radius:10px; padding:14px; margin:14px 0; }
+    .steps ol { margin:0 0 0 18px; }
     .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:14px 0; }
     select { padding:10px; border-radius:8px; border:1px solid #cbd5e1; min-width:280px; }
     button { padding:10px 14px; border-radius:8px; border:0; background:#007aff; color:#fff; cursor:pointer; }
     button:disabled { opacity:.45; cursor:not-allowed; }
-    .pill { display:inline-block; padding:6px 10px; border-radius:999px; background:#111827; color:#fff; font-size:12px; }
     .warn { background:#fff7ed; border:1px solid #fed7aa; color:#7c2d12; border-radius:10px; padding:12px; margin-top:12px; }
-    #log { white-space:pre-wrap; background:#0b1020; color:#b6ffb6; border-radius:10px; padding:12px; height:220px; overflow:auto; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; }
-    .small { font-size:12px; color:#475569; }
+    #log { white-space:pre-wrap; background:#0b1020; color:#b6ffb6; border-radius:10px; padding:12px; height:220px; overflow:auto; font-family:monospace; font-size:12px; }
   </style>
 </head>
 
 <body>
-  <div class="wrap">
-    <div class="card">
-      <h1>FOX2 Firmware Updater <span class="pill">App only</span></h1>
-      <p class="sub">This updater writes ONLY the app at <b>0x10000</b>. It does <b>not</b> touch bootloader, partitions, SPIFFS, or Preferences.</p>
+<div class="wrap">
+  <div class="card">
+    <h1>FOX2 Firmware Updater (App Only)</h1>
+    <p class="sub">
+      This updater writes ONLY the app at <b>0x10000</b>.  
+      It does <b>not</b> erase bootloader, partitions, SPIFFS, or Preferences.
+    </p>
 
-      <div class="steps">
-        <ol>
-          <li><b>Unplug</b> the device.</li>
-          <li>Hold <b>BOOT</b>, then <b>plug USB in</b>. Keep holding BOOT for ~2 seconds, then release.</li>
-          <li>Click <b>Connect</b> and choose the USB device/port.</li>
-          <li>Select firmware, then click <b>Flash App Update</b>.</li>
-          <li>If the device doesn’t restart automatically, press <b>RESET</b> once.</li>
-        </ol>
-      </div>
-
-      <div class="row">
-        <button id="btnConnect">Connect</button>
-
-        <select id="fwSelect"></select>
-
-        <button id="btnFlash" disabled>Flash App Update</button>
-      </div>
-
-      <div class="warn">
-        <b>Important:</b> This page will never erase your device. If you used a generic flasher before and “nothing happened” on boot, it likely wrote to the wrong address or erased flash (which can wipe Preferences).
-      </div>
-
-      <div style="margin:14px 0 8px 0" class="small">Console</div>
-      <div id="log"></div>
+    <div class="steps">
+      <ol>
+        <li>Unplug the device.</li>
+        <li>Hold <b>BOOT</b> while plugging in USB.</li>
+        <li>Click <b>Connect</b>.</li>
+        <li>Select firmware and click <b>Flash</b>.</li>
+        <li>Press RESET if needed.</li>
+      </ol>
     </div>
+
+    <div class="row">
+      <button id="btnConnect">Connect</button>
+      <select id="fwSelect">
+        <option value="fox2_stable.bin">Stable (recommended)</option>
+        <option value="fox2_beta.bin">Beta</option>
+      </select>
+      <button id="btnFlash" disabled>Flash App Update</button>
+    </div>
+
+    <div class="warn">
+      This tool will NEVER erase your device.
+    </div>
+
+    <h3>Console</h3>
+    <div id="log"></div>
   </div>
+</div>
 
-  <script type="module">
-    import { ESPLoader, Transport } from "./bundle.js";
+<script type="module">
+import { ESPLoader, Transport } from "./lib/index.js";
 
-    const FIRMWARES = [
-      { label: "Stable (recommended)", file: "fox2_stable.bin" },
-      { label: "Beta",                 file: "fox2_beta.bin"   },
-    ];
+const APP_OFFSET = 0x10000;
+const BAUD = 115200;
 
-    const APP_OFFSET = 0x10000;
-    const BAUD = 9600;
+const logEl = document.getElementById("log");
+const btnConnect = document.getElementById("btnConnect");
+const btnFlash = document.getElementById("btnFlash");
+const fwSelect = document.getElementById("fwSelect");
 
-    const logEl = document.getElementById("log");
-    const btnConnect = document.getElementById("btnConnect");
-    const btnFlash = document.getElementById("btnFlash");
-    const fwSelect = document.getElementById("fwSelect");
+let device;
+let transport;
+let loader;
+let connected = false;
 
-    let device = null;
-    let transport = null;
-    let loader = null;
-    let connected = false;
+function log(msg) {
+  logEl.textContent += msg + "\n";
+  logEl.scrollTop = logEl.scrollHeight;
+  console.log(msg);
+}
 
-    function log(msg) {
-      logEl.textContent += msg + "\n";
-      logEl.scrollTop = logEl.scrollHeight;
-      console.log(msg);
-    }
+function logInline(msg) {
+  logEl.textContent += msg;
+  logEl.scrollTop = logEl.scrollHeight;
+  console.log(msg);
+}
 
-    // Helper: append without always adding an extra newline (esptool sometimes uses write())
-    function logInline(msg) {
-      logEl.textContent += String(msg);
-      logEl.scrollTop = logEl.scrollHeight;
-      console.log(msg);
-    }
-
-    function setFlashEnabled(on) {
-      btnFlash.disabled = !on;
-    }
-
-    function populateFirmwareMenu() {
-      fwSelect.innerHTML = "";
-      for (const fw of FIRMWARES) {
-        const opt = document.createElement("option");
-        opt.value = fw.file;
-        opt.textContent = fw.label + " — " + fw.file;
-        fwSelect.appendChild(opt);
-      }
-    }
-  
 async function connect() {
   try {
-    if (!("serial" in navigator)) {
-      log("WebSerial not supported. Use Chrome or Edge (desktop).");
-      return;
-    }
-
-    // --- Clean up any previous session ---
-    log("Resetting previous connection (if any)...");
-    try { if (transport) await transport.disconnect(); } catch {}
-    try { if (device) await device.close(); } catch {}
-    transport = null;
-    device = null;
-    loader = null;
-    connected = false;
-    setFlashEnabled(false);
-
-    // --- Ask user for port ---
-    log("Requesting serial port...");
     device = await navigator.serial.requestPort();
 
-    // --- Try to open; ignore "already open" ---
-    log("Opening serial port...");
-    try {
-      await device.open({
-        baudRate: BAUD,
-        dataBits: 8,
-        stopBits: 1,
-        parity: "none",
-        flowControl: "none",
-      });
-      await new Promise(r => setTimeout(r, 150));
-    } catch (e) {
-      const msg = String(e?.message || e);
-      if (msg.includes("already open")) {
-        log("Port already open (ok).");
-      } else {
-        throw e; // real open error
-      }
-    }
-
-    // --- Create transport/loader ---
     transport = new Transport(device);
 
     loader = new ESPLoader({
@@ -153,71 +96,57 @@ async function connect() {
       baudrate: BAUD,
       terminal: {
         clean: () => {},
-        writeLine: (s) => log(String(s)),
-        write: (s) => logInline(String(s)),
+        writeLine: (data) => log(String(data)),
+        write: (data) => logInline(String(data)),
       },
     });
 
-    log("Connecting to ROM bootloader...");
+    log("Connecting...");
     await loader.connect();
 
     connected = true;
-    setFlashEnabled(true);
+    btnFlash.disabled = false;
     log("Connected ✅");
   } catch (e) {
-    connected = false;
-    setFlashEnabled(false);
-
     log("Connect error: " + (e?.message || e));
-    log("Tip: Unplug, hold BOOT while plugging in, then try Connect again.");
-
-    // Attempt cleanup on failure
-    try { if (device) await device.close(); } catch {}
-    console.error(e);
   }
 }
 
-    async function flashApp() {
-      if (!connected || !loader) {
-        log("Not connected. Click Connect first.");
-        return;
-      }
+async function flashApp() {
+  if (!connected) {
+    log("Not connected.");
+    return;
+  }
 
-      const filename = fwSelect.value;
+  try {
+    btnFlash.disabled = true;
 
-      try {
-        setFlashEnabled(false);
-        log(`Fetching ${filename}...`);
-        const res = await fetch(filename, { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${filename}`);
-        const bin = await res.arrayBuffer();
+    const filename = fwSelect.value;
+    log("Fetching " + filename + "...");
 
-        log(`Flashing APP only at 0x${APP_OFFSET.toString(16)} (this preserves Preferences/SPIFFS)...`);
+    const res = await fetch(filename, { cache: "no-store" });
+    const bin = await res.arrayBuffer();
 
-        await loader.writeFlash({
-          fileArray: [{ data: bin, address: APP_OFFSET }],
-          compress: true,
-        });
+    log("Flashing at 0x10000...");
 
-        log("✅ Flash complete. Resetting device...");
-        try {
-          await loader.hardReset();
-        } catch {
-          log("Reset not supported via USB on this board — press RESET once.");
-        }
+    await loader.writeFlash({
+      fileArray: [{ data: bin, address: APP_OFFSET }],
+      compress: true,
+    });
 
-        log("Done.");
-      } catch (e) {
-        log("Flash error: " + (e?.message || e));
-        log("Tip: Unplug, hold BOOT while plugging in, then Connect + Flash again.");
-      } finally {
-        setFlashEnabled(true);
-      }
-    }
+    log("Flash complete.");
+    await loader.hardReset();
 
-    populateFirmwareMenu();
-    btnConnect.addEventListener("click", connect);
-    btnFlash.addEventListener("click", flashApp);
-  </script>
+    btnFlash.disabled = false;
+  } catch (e) {
+    log("Flash error: " + (e?.message || e));
+    btnFlash.disabled = false;
+  }
+}
+
+btnConnect.addEventListener("click", connect);
+btnFlash.addEventListener("click", flashApp);
+</script>
+
 </body>
 </html>
