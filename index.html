@@ -30,37 +30,47 @@
       }
     };
 
-    document.getElementById("connect").onclick = async () => {
+document.getElementById("connect").onclick = async () => {
 
-      try {
-        terminal.clean();
-        terminal.writeLine("Requesting serial port...");
+  try {
+    terminal.clean();
+    terminal.writeLine("Requesting serial port...");
 
-        const port = await navigator.serial.requestPort();
+    const port = await navigator.serial.requestPort();
 
-        terminal.writeLine("Creating transport...");
+    terminal.writeLine("Opening serial port...");
 
-        const transport = new Transport(port);
+    await port.open({
+      baudRate: 115200,
+      dataBits: 8,
+      stopBits: 1,
+      parity: "none",
+      flowControl: "none"
+    });
 
-        const loader = new ESPLoader({
-          transport,
-          baudrate: 115200,
-          terminal,
-          debugLogging: true
-        });
+    terminal.writeLine("Creating transport...");
 
-        terminal.writeLine("Connecting to ESP32...");
+    const transport = new Transport(port, true); // ← true = already opened
 
-        await loader.connect();
+    const loader = new ESPLoader({
+      transport,
+      baudrate: 115200,
+      terminal,
+      debugLogging: true
+    });
 
-        terminal.writeLine("Connected!");
-        terminal.writeLine("Chip: " + loader.chip.CHIP_NAME);
+    terminal.writeLine("Connecting to ESP32...");
 
-      } catch (err) {
-        terminal.writeLine("ERROR: " + err);
-        console.error(err);
-      }
-    };
+    await loader.connect();
+
+    terminal.writeLine("Connected!");
+    terminal.writeLine("Chip: " + loader.chip.CHIP_NAME);
+
+  } catch (err) {
+    terminal.writeLine("ERROR: " + err);
+    console.error(err);
+  }
+};
   </script>
 </body>
 </html>
