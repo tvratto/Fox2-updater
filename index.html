@@ -2,17 +2,14 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Fox2 Firmware Updater</title>
+<title>Fox2 Firmware Update</title>
 <style>
   body {
-    font-family: system-ui, -apple-system, sans-serif;
+    font-family: system-ui;
     background: #111;
     color: #eee;
     padding: 40px;
     text-align: center;
-  }
-  esp-web-install-button {
-    margin-top: 20px;
   }
 </style>
 </head>
@@ -22,15 +19,16 @@
 
 <p>
 1. Hold BOOT<br>
-2. Plug in device<br>
-3. Click Connect<br>
+2. Plug device in<br>
+3. Click Connect
 </p>
 
-<script type="module"
-  src="https://cdn.jsdelivr.net/npm/@espressif/web-install-button@0.5.6/dist/web-install-button.js">
+<script type="module">
+  import "https://unpkg.com/esp-web-tools@9/dist/web/install-button.js?module";
 </script>
 
 <esp-web-install-button manifest="manifest.json">
+  <button slot="activate">Connect & Install</button>
 </esp-web-install-button>
 
 </body>
