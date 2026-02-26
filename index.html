@@ -4,9 +4,6 @@
   <meta charset="utf-8">
   <title>FOX2 App Update</title>
 
-  <!-- Load esptool-js web bundle from jsDelivr (CORS-friendly) -->
-  <script src="https://cdn.jsdelivr.net/npm/esptool-js@latest/dist/web/esptool.min.js"></script>
-
   <style>
     body { font-family: Arial, sans-serif; text-align: center; margin-top: 60px; background: #f5f5f5; }
     .card { background: white; padding: 30px; display: inline-block; border-radius: 10px;
@@ -26,78 +23,79 @@
     <p><strong>2)</strong> Hold <b>BOOT</b> and plug it in</p>
     <p><strong>3)</strong> Click <b>Connect</b>, then <b>Flash</b></p>
 
-    <button onclick="connectDevice()">Connect</button>
-    <button onclick="flashDevice()">Flash</button>
+    <button id="connectBtn">Connect</button>
+    <button id="flashBtn">Flash</button>
 
     <div id="console"></div>
   </div>
 
-  <script>
-    let device, transport, loader;
+<script type="module">
+import { ESPLoader, Transport } from "https://cdn.jsdelivr.net/npm/esptool-js@latest/dist/web/index.js";
 
-    function log(msg) {
-      const el = document.getElementById("console");
-      el.textContent += msg + "\\n";
-      el.scrollTop = el.scrollHeight;
+let device, transport, loader;
+
+function log(msg) {
+  const el = document.getElementById("console");
+  el.textContent += msg + "\n";
+  el.scrollTop = el.scrollHeight;
+}
+
+async function connectDevice() {
+  try {
+    if (!("serial" in navigator)) {
+      log("WebSerial not supported. Use Chrome/Edge.");
+      return;
     }
 
-    async function connectDevice() {
-      try {
-        if (!("serial" in navigator)) {
-          log("WebSerial not supported. Use Chrome/Edge on desktop.");
-          return;
-        }
+    log("Requesting serial port...");
+    device = await navigator.serial.requestPort();
 
-        log("Requesting serial port...");
-        device = await navigator.serial.requestPort();
+    transport = new Transport(device);
 
-        log("Opening transport...");
-        transport = new ESPLoader.Transport(device);
+    loader = new ESPLoader({
+      transport,
+      baudrate: 115200,
+      terminal: { writeLine: log, write: log }
+    });
 
-        // Keep baud conservative for stability on macOS + ESP32-S2
-        loader = new ESPLoader({
-          transport,
-          baudrate: 115200,
-          terminal: { writeLine: log, write: log }
-        });
+    log("Connecting...");
+    await loader.connect();
+    log("Connected.");
+  } catch (e) {
+    log("Connect error: " + e.message);
+    console.error(e);
+  }
+}
 
-        log("Connecting to bootloader...");
-        await loader.connect();
-        log("Connected.");
-      } catch (e) {
-        log("Connect error: " + (e?.message || e));
-        console.error(e);
-      }
+async function flashDevice() {
+  try {
+    if (!loader) {
+      log("Click Connect first.");
+      return;
     }
 
-    async function flashDevice() {
-      try {
-        if (!loader) {
-          log("Please click Connect first.");
-          return;
-        }
+    log("Fetching firmware.bin...");
+    const res = await fetch("firmware.bin", { cache: "no-store" });
+    const firmware = await res.arrayBuffer();
 
-        log("Fetching firmware.bin...");
-        const res = await fetch("firmware.bin", { cache: "no-store" });
-        if (!res.ok) throw new Error("Failed to fetch firmware.bin: HTTP " + res.status);
-        const firmware = await res.arrayBuffer();
+    log("Flashing at 0x10000...");
+    await loader.writeFlash({
+      fileArray: [{ data: firmware, address: 0x10000 }],
+      flashSize: "4MB",
+      compress: true
+    });
 
-        log("Writing app to 0x10000 (keeps bootloader/partitions/SPIFFS)...");
-        await loader.writeFlash({
-          fileArray: [{ data: firmware, address: 0x10000 }],
-          flashSize: "4MB",
-          compress: true
-        });
+    log("Flash complete!");
+    await loader.hardReset();
+  } catch (e) {
+    log("Flash error: " + e.message);
+    console.error(e);
+  }
+}
 
-        log("Flash done. Resetting device...");
-        await loader.hardReset();
+document.getElementById("connectBtn").onclick = connectDevice;
+document.getElementById("flashBtn").onclick = flashDevice;
 
-        log("✅ Done. If it doesn't reboot, press RESET once.");
-      } catch (e) {
-        log("Flash error: " + (e?.message || e));
-        console.error(e);
-      }
-    }
-  </script>
+</script>
 </body>
 </html>
