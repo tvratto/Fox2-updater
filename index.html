@@ -1,50 +1,19 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>FOX2 Test</title>
-</head>
-<body>
-
 <button id="connect">Connect</button>
-<pre id="log"></pre>
 
 <script type="module">
-import { ESPLoader, Transport } from "./esptool.js";
-
-const logEl = document.getElementById("log");
-
-function log(s) {
-  logEl.textContent += s + "\n";
-  console.log(s);
-}
+import { ESPLoader } from './esptool.js';
 
 document.getElementById("connect").onclick = async () => {
-  try {
-    log("Requesting serial port...");
-    const device = await navigator.serial.requestPort();
+  const port = await navigator.serial.requestPort();
+  await port.open({ baudRate: 115200 });
 
-    const transport = new Transport(device);
+  const loader = new ESPLoader({
+    transport: port,
+    baudrate: 115200,
+    terminal: { write: console.log }
+  });
 
-    const loader = new ESPLoader({
-      transport,
-      baudrate: 115200,
-      terminal: {
-        clean: () => {},
-        writeLine: (s) => log(String(s)),
-        write: (s) => log(String(s)),
-      },
-    });
-
-    log("Connecting...");
-    await loader.connect();
-
-    log("Connected!");
-  } catch (e) {
-    log("Error: " + e.message);
-  }
+  await loader.connect();
+  console.log("Connected!");
 };
 </script>
-
-</body>
-</html>
