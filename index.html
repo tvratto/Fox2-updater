@@ -1,33 +1,78 @@
-<button id="connect">Connect</button>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Fox2 Web Flasher</title>
+</head>
 
-<script type="module">
-import { ESPLoader } from "./esptool.js";
+<body>
+  <h2>Fox2 Updater</h2>
+  <button id="connect">Connect to ESP32-S2</button>
 
-document.getElementById("connect").onclick = async () => {
+  <pre id="log" style="background:#111;color:#0f0;padding:10px;height:300px;overflow:auto;"></pre>
 
-  const port = await navigator.serial.requestPort();
+  <script type="module">
+    import { ESPLoader } from "./esptool.js";
 
-  await port.open({
-    baudRate: 115200,
-    dataBits: 8,
-    stopBits: 1,
-    parity: "none",
-    flowControl: "none"
-  });
+    const logEl = document.getElementById("log");
 
-  const terminal = {
-    write: (data) => console.log(data),
-    clean: () => console.clear()
-  };
+    const terminal = {
+      write: (data) => {
+        logEl.textContent += data;
+        logEl.scrollTop = logEl.scrollHeight;
+      },
+      writeLine: (data) => {
+        logEl.textContent += data + "\n";
+        logEl.scrollTop = logEl.scrollHeight;
+      },
+      clean: () => {
+        logEl.textContent = "";
+      }
+    };
 
-  const loader = new ESPLoader({
-    transport: port,
-    baudrate: 115200,
-    terminal: terminal,
-    debugLogging: true
-  });
+    let port;
 
-  await loader.connect();
-  console.log("Connected to ESP!");
-};
-</script>
+    document.getElementById("connect").onclick = async () => {
+
+      try {
+
+        terminal.clean();
+        terminal.writeLine("Requesting serial port...");
+
+        port = await navigator.serial.requestPort();
+
+        terminal.writeLine("Opening serial port...");
+
+        await port.open({
+          baudRate: 115200,
+          dataBits: 8,
+          stopBits: 1,
+          parity: "none",
+          flowControl: "none"
+        });
+
+        terminal.writeLine("Port opened at 115200.");
+
+        const loader = new ESPLoader({
+          transport: port,
+          baudrate: 115200,
+          terminal: terminal,
+          debugLogging: true
+        });
+
+        terminal.writeLine("Connecting to ESP32...");
+
+        await loader.connect();
+
+        terminal.writeLine("Connected successfully!");
+        terminal.writeLine("Chip: " + loader.chip.CHIP_NAME);
+
+      } catch (err) {
+        terminal.writeLine("ERROR: " + err);
+        console.error(err);
+      }
+    };
+
+  </script>
+</body>
+</html>
